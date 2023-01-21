@@ -360,7 +360,10 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 
 	function handle_punctuation(token) {
 		if (token.value == "(") {
-			err("unexpected (")
+			push_to_build({
+				type: "call",
+				value: Modlite_compiler.parse(context, tokens, false),
+			})
 		} else if (token.value == ")") {
 			exit = true
 			return

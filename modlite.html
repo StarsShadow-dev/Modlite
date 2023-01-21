@@ -33,14 +33,14 @@
 	</div>
 	<script>
 
-		const RunTime = new ModliteRunTime()
+		const runTime = new ModliteRunTime()
 
-		RunTime.exposedFunctions.test = () => {
-			document.getElementById('output').value += RunTime.stack.pop()
+		runTime.exposedFunctions.test = () => {
+			document.getElementById('output').value += runTime.stack.pop()
 		}
 
-		RunTime.exposedFunctions.print = () => {
-			console.log("[print]", RunTime.stack.pop())
+		runTime.exposedFunctions.print = () => {
+			console.log("[print]", runTime.stack.pop())
 		}
 
 		// function runCode(string) {

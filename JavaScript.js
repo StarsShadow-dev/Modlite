@@ -40,7 +40,9 @@ var experimentalProgram = [
 	binaryCodes.push,"Hello World",binaryCodes.break,
 	binaryCodes.externalJump,"print",binaryCodes.break,
 
-	//binaryCodes.jump,0,binaryCodes.break,
+	// binaryCodes.push,"0",binaryCodes.break,
+	// binaryCodes.jump,
+
 	binaryCodes.push,"error",binaryCodes.break,
 	binaryCodes.externalJump,"print",binaryCodes.break,
 ].join("")
@@ -54,24 +56,25 @@ class ModliteRunTime {
 			const char = binary[i++];
 			if (char == binaryCodes.push) {
 				const data = goToBreak()
-				console.log("push", data)
+				// console.log("push", data)
 				this.stack.push(data)
 			} else if (char == binaryCodes.pop) {
-				console.log("pop", this.stack.pop())
+				this.stack.pop()
+				// console.log("pop", )
 			} else if (char == binaryCodes.jump) {
-				const location = Number(goToBreak())
-				console.log("jump", location)
+				const location = Number(this.stack.pop())
+				// console.log("jump", location)
 				i = location
 			} else if (char == binaryCodes.conditionalJump) {
-				const location = Number(goToBreak())
-				const condition = this.stack.pop()
-				console.log("conditionalJump", location, condition)
-				if (condition == "1") {
-					i = location
-				}
+				// const location = Number(goToBreak())
+				// const condition = this.stack.pop()
+				// console.log("conditionalJump", location, condition)
+				// if (condition == "1") {
+				// 	i = location
+				// }
 			} else if (char == binaryCodes.externalJump) {
 				const name = goToSpaceOrBreak()
-				console.log("externalJump", name)
+				// console.log("externalJump", name)
 				this.exposedFunctions[name]()
 			} else {
 				console.log("ignore", char)
