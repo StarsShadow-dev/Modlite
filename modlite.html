@@ -25,6 +25,7 @@
 				<button onclick="document.getElementById('output').value = JSON.stringify(parseCode(document.getElementById('code-textarea').value), null, 2)">Parse Code</button>
 				<button onclick="document.getElementById('output').value = compileCode(document.getElementById('code-textarea').value, false)">Compile Code</button>
 				<button onclick="document.getElementById('output').value = compileCode(document.getElementById('code-textarea').value, true)">Compile Code Debug</button>
+				<button onclick="runTime.run(compileCode(document.getElementById('code-textarea').value, false))">Run Code</button>
 			</li>
 			<li></li>
 			<h3>output</h3>
