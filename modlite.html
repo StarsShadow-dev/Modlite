@@ -44,14 +44,6 @@
 			console.log("[print]", runTime.stack.pop())
 		}
 
-		// function runCode(string) {
-		// 	const opCode = Modlite_compiler.compileCode(string)
-		// 	// if the operation code does not exist because there was an error during building just return
-		// 	if (!opCode) return
-
-		// 	return runInJavaScript(opCode).pop()
-		// }
-
 		function saveCode() {
 			window.localStorage.setItem('saved-code-area', document.getElementById("code-textarea").value);
 		}
