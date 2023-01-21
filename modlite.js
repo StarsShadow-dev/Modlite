@@ -408,7 +408,7 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 		// eat the "{"
 		next_token()
 
-		const statement = Modlite_compiler.parse(context, tokens)
+		const statement = Modlite_compiler.parse(context, tokens, false)
 
 		push_to_build({
 			type: "function",
@@ -537,7 +537,7 @@ function parseCode(string) {
 	let parse
 	if (Modlite_compiler.devlog) console.time("parse Modlite")
 	try {
-		parse = Modlite_compiler.parse({ lineNumber: 1, level: -1, i: 0 }, Modlite_compiler.lex(string))
+		parse = Modlite_compiler.parse({ lineNumber: 1, level: -1, i: 0 }, Modlite_compiler.lex(string), false)
 	} catch(err) {
 		if (err != "[lexar error]" && err != "[parser error]") console.error(err)
 		if (Modlite_compiler.devlog) console.timeEnd("parse Modlite")
@@ -551,7 +551,7 @@ function compileCode(string, humanReadable) {
 	let binary
 	if (Modlite_compiler.devlog) console.time("parse Modlite")
 	try {
-		binary = Modlite_compiler.generateBinary(Modlite_compiler.parse({ lineNumber: 1, level: -1, i: 0 }, Modlite_compiler.lex(string)), humanReadable)
+		binary = Modlite_compiler.generateBinary(Modlite_compiler.parse({ lineNumber: 1, level: -1, i: 0 }, Modlite_compiler.lex(string), false), humanReadable)
 	} catch(err) {
 		if (err != "[lexar error]" && err != "[parser error]") console.error(err)
 		if (Modlite_compiler.devlog) console.timeEnd("parse Modlite")
