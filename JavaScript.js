@@ -4,6 +4,8 @@ const binaryCodes = {
 	// information management
 	//
 
+	// retrive: "r",
+
 	// string: "a",
 	// number: "b",
 	// null: "c",
@@ -50,6 +52,9 @@ var experimentalProgram = [
 class ModliteRunTime {
 	exposedFunctions = {}
 	stack = []
+	reset = () => {
+		this.stack = []
+	}
 	run = (binary) => {
 		let i = 0;
 		while (i < binary.length) {
@@ -73,7 +78,7 @@ class ModliteRunTime {
 				// 	i = location
 				// }
 			} else if (char == binaryCodes.externalJump) {
-				const name = goToSpaceOrBreak()
+				const name = this.stack.pop()
 				// console.log("externalJump", name)
 				this.exposedFunctions[name]()
 			} else {

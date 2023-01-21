@@ -315,7 +315,7 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 		// 	parse_return()
 		} else {
 			push_to_build({
-				type: "word",
+				type: "var",
 				value: token.value,
 			})
 		}
@@ -336,11 +336,10 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 	}
 
 	function handle_operator(token) {
-		// const last = build.pop()
-		// console.log(last)
+		if (prior == undefined) err(token.value + " without left side")
+
 		if (token.value == "+" || token.value == "-" || token.value == "*" || token.value == "/") {
 			const prior = build[build.length-1]
-			if (prior == undefined) err(token.value + " without left side")
 			if (prior.type != "number") err(token.value + " left side is not number")
 
 			push_to_build({
@@ -360,8 +359,10 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 
 	function handle_punctuation(token) {
 		if (token.value == "(") {
+			
 			push_to_build({
 				type: "call",
+				name: build.pop().value,
 				value: Modlite_compiler.parse(context, tokens, false),
 			})
 		} else if (token.value == ")") {
@@ -454,7 +455,7 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 }
 
 Modlite_compiler.generateBinary = (build, humanReadable) => {
-	let binary = ""
+	let binary = []
 	for (let index = 0; index < build.length; index++) {
 		const thing = build[index];
 		if (thing.type == "function") {
@@ -466,28 +467,49 @@ Modlite_compiler.generateBinary = (build, humanReadable) => {
 			if (humanReadable)
 			pushToBinary("push string: " + thing.value)
 			else
-			pushToBinary(binaryCodes.push + thing.value + binaryCodes.break)
+			pushToBinary(Modlite_compiler.binaryCodes.push + thing.value + Modlite_compiler.binaryCodes.break)
 		} else if (thing.type == "number") {
 			if (humanReadable)
 			pushToBinary("push number: " + thing.value)
 			else
-			pushToBinary(binaryCodes.push + thing.value + binaryCodes.break)
+			pushToBinary(Modlite_compiler.binaryCodes.push + thing.value + Modlite_compiler.binaryCodes.break)
 		} else if (thing.type == "bool") {
 			if (humanReadable)
 			pushToBinary("push bool: " + thing.value)
 			else
-			pushToBinary(binaryCodes.push + (thing.value == true ? "1" : "0") + binaryCodes.break)
+			pushToBinary(Modlite_compiler.binaryCodes.push + (thing.value == true ? "1" : "0") + Modlite_compiler.binaryCodes.break)
+		} else if (thing.type == "var") {
+			console.log("var")
+			// if (humanReadable)
+			// pushToBinary("retrive var: " + thing.value)
+			// else
+			// pushToBinary(Modlite_compiler.binaryCodes.retrive + thing.value + Modlite_compiler.binaryCodes.break)
+		} else if (thing.type == "call") {
+			if (humanReadable) {
+				pushToBinary(Modlite_compiler.generateBinary(thing.value, humanReadable))
+				pushToBinary("push string: " + thing.name)
+				pushToBinary("externalJump")
+			}
+			else {
+				pushToBinary(Modlite_compiler.generateBinary(thing.value, humanReadable))
+				pushToBinary(Modlite_compiler.binaryCodes.push + thing.name + Modlite_compiler.binaryCodes.break)
+				pushToBinary(Modlite_compiler.binaryCodes.externalJump)
+			}
 		}
-		console.log(thing)
 	}
 
 
 	function pushToBinary(string) {
-		binary += string
-		if (humanReadable) binary += "\n"
+		binary.push(string)
 	}
 	
-	return binary//.map(char => Modlite_compiler.binaryCodes(char)).join('');
+	if (humanReadable) {
+		return binary.join("\n")
+	} else {
+		return binary.join("")
+	}
+	
+	// return binary.map(char => Modlite_compiler.binaryCodes(char)).join('');
 }
 
 Modlite_compiler.binaryToText = (string) => {
@@ -552,14 +574,14 @@ function parseCode(string) {
 
 function compileCode(string, humanReadable) {
 	let binary
-	if (Modlite_compiler.devlog) console.time("parse Modlite")
+	if (Modlite_compiler.devlog) console.time("compile Modlite")
 	try {
 		binary = Modlite_compiler.generateBinary(Modlite_compiler.parse({ lineNumber: 1, level: -1, i: 0 }, Modlite_compiler.lex(string), false), humanReadable)
 	} catch(err) {
 		if (err != "[lexar error]" && err != "[parser error]") console.error(err)
-		if (Modlite_compiler.devlog) console.timeEnd("parse Modlite")
+		if (Modlite_compiler.devlog) console.timeEnd("compile Modlite")
 		return
 	}
-	if (Modlite_compiler.devlog) console.timeEnd("parse Modlite")
+	if (Modlite_compiler.devlog) console.timeEnd("compile Modlite")
 	return binary
 }
