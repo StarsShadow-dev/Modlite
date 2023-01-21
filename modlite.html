@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>Modlite test</title>
+	<script src="./ace.min.js" type="text/javascript" charset="utf-8"></script>
+	<script src="./modlite.js"></script>
+	<script src="./JavaScript.js"></script>
+</head>
+
+<body>
+	<div id="top.div">
+		<h1>Modlite v11</h1>
+	</div>
+
+	<div id="main.div">
+		<ul id="nodisc-ul">
+			<li> <label>Code</label></li>
+			<li>
+				<div id="editor" style="width: auto; height: 600px;"></div>
+				<textarea id="code-textarea" style='display: none;'></textarea>
+			</li>
+			<li>
+				<button onclick="document.getElementById('output').value = JSON.stringify(Modlite_compiler.lex(document.getElementById('code-textarea').value), null, 2)">Lex Code</button>
+				<button onclick="document.getElementById('output').value = JSON.stringify(parseCode(document.getElementById('code-textarea').value), null, 2)">Parse Code</button>
+				<button onclick="document.getElementById('output').value = compileCode(document.getElementById('code-textarea').value, false)">Compile Code</button>
+				<button onclick="document.getElementById('output').value = compileCode(document.getElementById('code-textarea').value, true)">Compile Code Debug</button>
+			</li>
+			<li></li>
+			<h3>output</h3>
+			<textarea id="output"></textarea>
+		</ul>
+	</div>
+	<script>
+
+		const RunTime = new ModliteRunTime()
+
+		RunTime.exposedFunctions.test = () => {
+			document.getElementById('output').value += RunTime.stack.pop()
+		}
+
+		RunTime.exposedFunctions.print = () => {
+			console.log("[print]", RunTime.stack.pop())
+		}
+
+		// function runCode(string) {
+		// 	const opCode = Modlite_compiler.compileCode(string)
+		// 	// if the operation code does not exist because there was an error during building just return
+		// 	if (!opCode) return
+
+		// 	return runInJavaScript(opCode).pop()
+		// }
+
+		function saveCode() {
+			window.localStorage.setItem('saved-code-area', document.getElementById("code-textarea").value);
+		}
+
+		function loadCode() {
+			document.getElementById("code-textarea").value = window.localStorage.getItem('saved-code-area');
+		}
+
+		// function saveEvalCode() {
+		// 	window.localStorage.setItem('saved-evalCode', document.getElementById("evalCode-textarea").value);
+		// }
+
+		// function loadEvalCode() {
+		// 	document.getElementById("evalCode-textarea").value = window.localStorage.getItem('saved-evalCode');
+		// }
+
+		// function runEvalCode() {
+		// 	eval(window.localStorage.getItem('saved-evalCode'));
+		// }
+
+		// document.getElementById("evalCode-textarea").addEventListener('input', function (event) {
+		// 	saveEvalCode()
+		// });
+		
+		var editor = ace.edit("editor");
+		ace.config.set('basePath', 'https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.14/');
+		// editor.setTheme("ace/theme/monokai");
+		// editor.session.setMode("ace/mode/javascript");
+		editor.on('change', function (change) {
+			document.getElementById("code-textarea").value = editor.getValue();
+			saveCode();
+		});
+		loadCode();
+		editor.setValue(document.getElementById("code-textarea").value)
+
+		setTimeout(() => {
+			// remove an annoying error message: [Error] Not allowed to load local resource: file:///favicon.ico
+			console.clear()
+		}, 100);
+	</script>
+	<style>
+		html {
+			background-color: white;
+			width: 100%;
+			height: 100%;
+		}
+
+		a {
+			text-decoration: none;
+		}
+
+		a[href]:link {
+			color: rgb(196, 69, 29);
+		}
+
+		a[href]:visited {
+			color: rgb(171, 105, 84);
+		}
+
+		a[href]:hover {
+			text-decoration: underline;
+		}
+
+		h1 {
+			color: rgb(78, 98, 114);
+			font-weight: bold;
+			border-bottom: 1px solid #ddd;
+			text-align: center;
+		}
+
+		body {
+			font: 13px/1.4 sans-serif;
+		}
+
+		pre {
+			padding: 0.25em;
+
+			margin: 0.8em 0;
+			background: rgb(229, 237, 244);
+			overflow: auto;
+			border-bottom: 0.25em solid white;
+			display: block;
+			width: 40%;
+		}
+
+		#code-textarea {
+			font-size: 14px;
+			line-height: 20px;
+			height: 60px;
+			margin: 4px 0;
+			border: 1px solid #bbb;
+			padding: 4px 7px;
+			width: 725px;
+			height: 250px;
+		}
+
+		a.button {
+			/* display: -moz-inline-box; */
+			/* display: inline-block; */
+			padding: 1px 6px;
+			color: #fff;
+			background: #32a0eb;
+			-webkit-border-radius: 4px;
+			-moz-border-radius: 4px;
+			border-radius: 4px;
+
+		}
+
+		#nodisc-ul {
+			list-style-type: none;
+		}
+
+		li {
+			display: block;
+			padding: 10px 20px;
+		}
+
+		#output {
+			width: 600px;
+			height: 500px;
+		}
+
+		#evalCode-textarea {
+			width: 600px;
+			height: 500px;
+		}
+	</style>
+
+</body>
+
+</html>
