@@ -14,17 +14,22 @@ const binaryCodes = {
 	push: "a",
 	pop: "b",
 
+	addRegisters: "c",
+
+	set: "e",
+	get: "f",
+
 	//
 	// Jumping
 	//
 
 	// Relative jump?
 
-	jump: "e",
-	conditionalJump: "f",
+	jump: "g",
+	conditionalJump: "h",
 	// jumps to code in the host programming language
-	externalJump: "g",
-	return: "z",
+	externalJump: "i",
+	return: "j",
 
 	//
 	// math
@@ -64,10 +69,18 @@ class ModliteRunTime {
 				// console.log("push", data)
 				this.stack.push(data)
 			} else if (char == binaryCodes.pop) {
-				this.stack.pop()
-				// console.log("pop", )
+				const amount = Number(goToBreak())
+				console.log("pop", amount)
+				this.stack.splice(this.stack.length - amount, amount)
+			} else if (char == binaryCodes.addRegisters) {
+				const amount = Number(goToBreak())
+				for (let index = 0; index < amount; index++) {
+					this.stack.push(undefined)
+				}
+			} else if (char == binaryCodes.set) {
+			} else if (char == binaryCodes.get) {
 			} else if (char == binaryCodes.jump) {
-				const location = Number(this.stack.pop())
+				const location = charToBaseTen(this.stack.pop())
 				// console.log("jump", location)
 				i = location
 			} else if (char == binaryCodes.conditionalJump) {
@@ -86,17 +99,17 @@ class ModliteRunTime {
 			}
 		}
 
-		function goToSpaceOrBreak() {
-			let past = ""
-			while (true) {
-				const char = binary[i++];
-				if (!char || char == " " || char == "\uFFFF") {
-					return past
-				} else {
-					past += char
-				}
-			}
-		}
+		// function goToSpaceOrBreak() {
+		// 	let past = ""
+		// 	while (true) {
+		// 		const char = binary[i++];
+		// 		if (!char || char == " " || char == "\uFFFF") {
+		// 			return past
+		// 		} else {
+		// 			past += char
+		// 		}
+		// 	}
+		// }
 	
 		function goToBreak() {
 			let past = ""
@@ -118,6 +131,10 @@ class ModliteRunTime {
 			return past
 		}
 	}
+}
+
+function charToBaseTen(char) {
+	return Number(char.charCodeAt(0).toString(10));
 }
 
 // uncomment this when using node

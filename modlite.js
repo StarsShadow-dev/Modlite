@@ -5,15 +5,6 @@
 	Currently compiles to a custom operation code and can run in JavaScript.
 */
 
-let checkSim = {
-	level: 0,
-	map: [[]],
-	variables: [{}],
-	globals: {},
-	// just leave it as Infinity until it gets set to a lineNumber in the main Modlite_compiler.check loop
-	lineNumber: Infinity,
-}
-
 // Modlite building environment
 const Modlite_compiler = {
 	version: "12.0",
@@ -37,10 +28,13 @@ const Modlite_compiler = {
 	binaryCodes: {
 		push: "a",
 		pop: "b",
-		jump: "e",
-		conditionalJump: "f",
-		externalJump: "g",
-		return: "z",
+		addRegisters: "c",
+		set: "e",
+		get: "f",
+		jump: "g",
+		conditionalJump: "h",
+		externalJump: "i",
+		return: "j",
 		break: "\uFFFF",
 	},
 }
@@ -454,67 +448,105 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 	return build
 }
 
-Modlite_compiler.generateBinary = (build, humanReadable) => {
-	let binary = []
-	for (let index = 0; index < build.length; index++) {
-		const thing = build[index];
-		if (thing.type == "function") {
-			if (humanReadable)
-			pushToBinary(thing.name + ":\n\t" + Modlite_compiler.generateBinary(thing.value, humanReadable).replace(/\n/g, "\n\t") + "return")
-			else
-			pushToBinary(Modlite_compiler.generateBinary(thing.value, humanReadable) + Modlite_compiler.binaryCodes.return)
-		} else if (thing.type == "string") {
-			if (humanReadable)
-			pushToBinary("push string: " + thing.value)
-			else
-			pushToBinary(Modlite_compiler.binaryCodes.push + thing.value + Modlite_compiler.binaryCodes.break)
-		} else if (thing.type == "number") {
-			if (humanReadable)
-			pushToBinary("push number: " + thing.value)
-			else
-			pushToBinary(Modlite_compiler.binaryCodes.push + thing.value + Modlite_compiler.binaryCodes.break)
-		} else if (thing.type == "bool") {
-			if (humanReadable)
-			pushToBinary("push bool: " + thing.value)
-			else
-			pushToBinary(Modlite_compiler.binaryCodes.push + (thing.value == true ? "1" : "0") + Modlite_compiler.binaryCodes.break)
-		} else if (thing.type == "var") {
-			console.log("var")
-			// if (humanReadable)
-			// pushToBinary("retrive var: " + thing.value)
-			// else
-			// pushToBinary(Modlite_compiler.binaryCodes.retrive + thing.value + Modlite_compiler.binaryCodes.break)
-		} else if (thing.type == "call") {
-			if (humanReadable) {
-				pushToBinary(Modlite_compiler.generateBinary(thing.value, humanReadable))
-				pushToBinary("push string: " + thing.name)
-				pushToBinary("externalJump")
-			}
-			else {
-				pushToBinary(Modlite_compiler.generateBinary(thing.value, humanReadable))
-				pushToBinary(Modlite_compiler.binaryCodes.push + thing.name + Modlite_compiler.binaryCodes.break)
-				pushToBinary(Modlite_compiler.binaryCodes.externalJump)
-			}
-		}
+Modlite_compiler.generateBinary = (build_in, humanReadable) => {
+	let binary = ["abc"]
+	let functionlocations = {}
+	let checkSim = {
+		level: -1,
+		map: [[]],
+		variables: [{}],
+		globals: {},
+		// just leave it as Infinity until it gets set to a lineNumber
+		lineNumber: Infinity,
 	}
 
+	getBinary(build_in)
 
-	function pushToBinary(string) {
-		binary.push(string)
+	if (functionlocations.main == undefined) {
+		// Modlite_compiler.handle_error always expects a line number
+		checkSim.lineNumber = 1
+		err("no main function")
 	}
-	
+
+	binary[0] = Modlite_compiler.binaryCodes.push + getCharacter(String(functionlocations.main)) + Modlite_compiler.binaryCodes.break + Modlite_compiler.binaryCodes.externalJump
+
 	if (humanReadable) {
+		binary[0] = ""
 		return binary.join("\n")
 	} else {
 		return binary.join("")
 	}
+
+	function getBinary(build) {
+		checkSim.level++
+		for (let index = 0; index < build.length; index++) {
+			const thing = build[index];
+			if (thing.lineNumber) checkSim.lineNumber = thing.lineNumber
+			if (thing.type == "function") {
+				if (checkSim.level != 0) err("functions can only be defined at top level")
+				functionlocations[thing.name] = binary.join("").length
+				if (humanReadable) {
+					pushToBinary(thing.name + ":")
+					getBinary(thing.value)
+					pushToBinary("return")
+				}
+				else {
+					getBinary(thing.value)
+					getBinary(Modlite_compiler.binaryCodes.jump)
+				}
+			} else if (thing.type == "string") {
+				if (humanReadable)
+				pushToBinary("push string: " + thing.value)
+				else
+				pushToBinary(Modlite_compiler.binaryCodes.push + thing.value + Modlite_compiler.binaryCodes.break)
+			} else if (thing.type == "number") {
+				if (humanReadable)
+				pushToBinary("push number: " + thing.value)
+				else
+				pushToBinary(Modlite_compiler.binaryCodes.push + thing.value + Modlite_compiler.binaryCodes.break)
+			} else if (thing.type == "bool") {
+				if (humanReadable)
+				pushToBinary("push bool: " + thing.value)
+				else
+				pushToBinary(Modlite_compiler.binaryCodes.push + (thing.value == true ? "1" : "0") + Modlite_compiler.binaryCodes.break)
+			} else if (thing.type == "var") {
+				console.log("var")
+				// if (humanReadable)
+				// pushToBinary("retrive var: " + thing.value)
+				// else
+				// pushToBinary(Modlite_compiler.binaryCodes.retrive + thing.value + Modlite_compiler.binaryCodes.break)
+			} else if (thing.type == "call") {
+				if (humanReadable) {
+					pushToBinary("push location to return to")
+					getBinary(thing.value)
+					pushToBinary("push string: " + thing.name)
+					pushToBinary("externalJump")
+				}
+				else {
+					getBinary(thing.value)
+					let stuff = Modlite_compiler.binaryCodes.push + thing.name + Modlite_compiler.binaryCodes.break + Modlite_compiler.binaryCodes.externalJump
+					pushToBinary(Modlite_compiler.binaryCodes.push + getCharacter(String(binary.join("").length + stuff.length + 2 + 1)) + Modlite_compiler.binaryCodes.break)
+					pushToBinary(stuff)
+				}
+			}
+		}
+		checkSim.level--
+	}
+
+	function getCharacter(string) {
+		return string.split(' ').map(char => String.fromCharCode(parseInt(char, 10))).join('');
+	}
+
+	function pushToBinary(string) {
+		binary.push(string)
+	}
+
+	function err(msg) {
+		Modlite_compiler.handle_error(msg, checkSim.lineNumber, checkSim.level)
+		throw "[check error]";
+	}
 	
 	// return binary.map(char => Modlite_compiler.binaryCodes(char)).join('');
-}
-
-Modlite_compiler.binaryToText = (string) => {
-	debugger
-	return string.split(' ').map(char => String.fromCharCode(parseInt(char, 2))).join('');
 }
 
 Modlite_compiler.handle_error = (error, lineNumber, level) => {
@@ -578,7 +610,7 @@ function compileCode(string, humanReadable) {
 	try {
 		binary = Modlite_compiler.generateBinary(Modlite_compiler.parse({ lineNumber: 1, level: -1, i: 0 }, Modlite_compiler.lex(string), false), humanReadable)
 	} catch(err) {
-		if (err != "[lexar error]" && err != "[parser error]") console.error(err)
+		if (err != "[lexar error]" && err != "[parser error]" && err != "[check error]") console.error(err)
 		if (Modlite_compiler.devlog) console.timeEnd("compile Modlite")
 		return
 	}
