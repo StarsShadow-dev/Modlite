@@ -302,7 +302,7 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 				type: "null",
 			})
 		} else if (token.value == "function") {
-			parse_function()
+			parse_function(token)
 		// } else if (token.value == "var") {
 		// 	parse_var()
 		// } else if (token.value == "return") {
@@ -380,7 +380,7 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 		}
 	}
 
-	function parse_function() {
+	function parse_function(token) {
 
 		const name = next_token()
 
@@ -413,6 +413,7 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 			name: name.value,
 			args: args,
 			value: statement,
+			lineNumber: token.lineNumber,
 		})
 	}
 
@@ -482,6 +483,11 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 		for (let index = 0; index < build.length; index++) {
 			const thing = build[index];
 			if (thing.lineNumber) checkSim.lineNumber = thing.lineNumber
+
+			if (checkSim.level == 0 && thing.type != "function") {
+				err("not a function at top level")
+			}
+
 			if (thing.type == "function") {
 				if (checkSim.level != 0) err("functions can only be defined at top level")
 				functionlocations[thing.name] = binary.join("").length
