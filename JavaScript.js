@@ -23,8 +23,6 @@ const binaryCodes = {
 	// Jumping
 	//
 
-	// Relative jump?
-
 	jump: "g",
 	conditionalJump: "h",
 	// jumps to code in the host programming language
@@ -80,6 +78,8 @@ class ModliteRunTime {
 			} else if (char == binaryCodes.set) {
 			} else if (char == binaryCodes.get) {
 			} else if (char == binaryCodes.jump) {
+				// if the stack is empty end program
+				if (this.stack.length == 0) break
 				const location = charToBaseTen(this.stack.pop())
 				// console.log("jump", location)
 				i = location

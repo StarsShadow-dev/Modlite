@@ -450,8 +450,9 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 }
 
 Modlite_compiler.generateBinary = (build_in, humanReadable) => {
-	let binary = ["abc"]
-	let functionlocations = {}
+	let binary = ["abcd"]
+	let callLocations = {}
+	let functionLocations = {}
 	let checkSim = {
 		level: -1,
 		map: [[]],
@@ -461,22 +462,44 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 		lineNumber: Infinity,
 	}
 
+	// Get the names of all the functions
+	for (let index = 0; index < build_in.length; index++) {
+		const thing = build_in[index];
+
+		if (thing.type != "function") err("not a function at top level")
+		
+		callLocations[thing.name] = []
+	}
+
 	getBinary(build_in)
 
-	if (functionlocations.main == undefined) {
+	// make sure the main function exists
+	if (functionLocations.main == undefined) {
 		// Modlite_compiler.handle_error always expects a line number
 		checkSim.lineNumber = 1
 		err("no main function")
 	}
 
-	binary[0] = Modlite_compiler.binaryCodes.push + getCharacter(String(functionlocations.main)) + Modlite_compiler.binaryCodes.break + Modlite_compiler.binaryCodes.externalJump
-
 	if (humanReadable) {
-		binary[0] = ""
-		return binary.join("\n")
+		binary[0] = "jump_to_main"
+		binary = binary.join("\n")
 	} else {
-		return binary.join("")
+		// replace the "abcd" with a jump to the main function
+		binary[0] = Modlite_compiler.binaryCodes.push + getCharacter(String(functionLocations.main)) + Modlite_compiler.binaryCodes.break + Modlite_compiler.binaryCodes.jump
+		binary = binary.join("")
 	}
+
+	for (const key in callLocations) {
+		for (let index = 0; index < callLocations[key].length; index++) {
+			const location = callLocations[key][index];
+			
+			let temp = binary.split("")
+			temp[location] = getCharacter(String(functionLocations[key]))
+			binary = temp.join("")
+		}
+	}
+
+	return binary
 
 	function getBinary(build) {
 		checkSim.level++
@@ -484,21 +507,18 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 			const thing = build[index];
 			if (thing.lineNumber) checkSim.lineNumber = thing.lineNumber
 
-			if (checkSim.level == 0 && thing.type != "function") {
-				err("not a function at top level")
-			}
-
 			if (thing.type == "function") {
 				if (checkSim.level != 0) err("functions can only be defined at top level")
-				functionlocations[thing.name] = binary.join("").length
+				functionLocations[thing.name] = binary.join("").length
+
 				if (humanReadable) {
 					pushToBinary(thing.name + ":")
 					getBinary(thing.value)
-					pushToBinary("return")
+					pushToBinary("jump")
 				}
 				else {
 					getBinary(thing.value)
-					getBinary(Modlite_compiler.binaryCodes.jump)
+					pushToBinary(Modlite_compiler.binaryCodes.jump)
 				}
 			} else if (thing.type == "string") {
 				if (humanReadable)
@@ -522,17 +542,30 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 				// else
 				// pushToBinary(Modlite_compiler.binaryCodes.retrive + thing.value + Modlite_compiler.binaryCodes.break)
 			} else if (thing.type == "call") {
-				if (humanReadable) {
-					pushToBinary("push location to return to")
-					getBinary(thing.value)
-					pushToBinary("push string: " + thing.name)
-					pushToBinary("externalJump")
-				}
-				else {
-					getBinary(thing.value)
-					let stuff = Modlite_compiler.binaryCodes.push + thing.name + Modlite_compiler.binaryCodes.break + Modlite_compiler.binaryCodes.externalJump
-					pushToBinary(Modlite_compiler.binaryCodes.push + getCharacter(String(binary.join("").length + stuff.length + 2 + 1)) + Modlite_compiler.binaryCodes.break)
-					pushToBinary(stuff)
+				if (callLocations[thing.name]) {
+					if (humanReadable) {
+						pushToBinary("push location to return to")
+						getBinary(thing.value)
+						pushToBinary("push location to go to")
+						pushToBinary("jump")
+					}
+					else {
+						let stuff = Modlite_compiler.binaryCodes.push + "*" + Modlite_compiler.binaryCodes.break + Modlite_compiler.binaryCodes.jump
+						pushToBinary(Modlite_compiler.binaryCodes.push + getCharacter(String(binary.join("").length + stuff.length + 3)) + Modlite_compiler.binaryCodes.break)
+						getBinary(thing.value)
+						callLocations[thing.name].push(binary.join("").length + 1)
+						pushToBinary(stuff)
+					}
+				} else {
+					if (humanReadable) {
+						getBinary(thing.value)
+						pushToBinary("push string: " + thing.name)
+						pushToBinary("externalJump")
+					}
+					else {
+						getBinary(thing.value)
+						pushToBinary(Modlite_compiler.binaryCodes.push + thing.name + Modlite_compiler.binaryCodes.break + Modlite_compiler.binaryCodes.externalJump)
+					}
 				}
 			}
 		}
