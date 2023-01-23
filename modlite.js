@@ -344,6 +344,7 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 			})
 		} else if (token.value == "=") {
 			if (build[build.length-1] && build[build.length-1].type == "var" && build[build.length-1].value == "var") {
+				build.pop()
 				push_to_build({
 					type: "definition",
 					left: prior,
