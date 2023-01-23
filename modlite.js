@@ -329,24 +329,33 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 	}
 
 	function handle_operator(token) {
+		const prior = build.pop()
+
 		if (prior == undefined) err(token.value + " without left side")
 
 		if (token.value == "+" || token.value == "-" || token.value == "*" || token.value == "/") {
-			const prior = build[build.length-1]
 			if (prior.type != "number") err(token.value + " left side is not number")
 
 			push_to_build({
 				type: "operation",
 				value: token.value,
-				left: build.pop(),
+				left: prior,
 				right: Modlite_compiler.parse(context, tokens, true)[0],
 			})
 		} else if (token.value == "=") {
-			// push_to_build({
-			// 	type: "assignment",
-			// 	left: get_token(-2),
-			// 	right: next_token(),
-			// })
+			if (build[build.length-1] && build[build.length-1].type == "var" && build[build.length-1].value == "var") {
+				push_to_build({
+					type: "definition",
+					left: prior,
+					right: Modlite_compiler.parse(context, tokens, true)[0],
+				})
+			} else {
+				push_to_build({
+					type: "assignment",
+					left: prior,
+					right: Modlite_compiler.parse(context, tokens, true)[0],
+				})
+			}
 		}
 	}
 
