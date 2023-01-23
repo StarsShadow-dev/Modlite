@@ -458,15 +458,17 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 		map: [[]],
 		variables: [{}],
 		globals: {},
-		// just leave it as Infinity until it gets set to a lineNumber
-		lineNumber: Infinity,
+		lineNumber: 0,
 	}
 
 	// Get the names of all the functions
 	for (let index = 0; index < build_in.length; index++) {
 		const thing = build_in[index];
+		if (thing.lineNumber) checkSim.lineNumber = thing.lineNumber
 
 		if (thing.type != "function") err("not a function at top level")
+
+		if (callLocations[thing.name]) err(`function ${thing.name} already exists`)
 		
 		callLocations[thing.name] = []
 	}
