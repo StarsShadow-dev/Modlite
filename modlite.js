@@ -7,10 +7,9 @@
 
 // Modlite building environment
 const Modlite_compiler = {
-	version: "12.0",
+	version: "12.1",
 	string: "",
 	devlog: true,
-	debug: false,
 
 	exposedVars: {},
 
@@ -403,6 +402,9 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 			}
 		}
 
+		const Return = next_token()
+		if (Return.type != "word") err("return must be a word")
+
 		// eat the "{"
 		next_token()
 
@@ -412,6 +414,7 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 			type: "function",
 			name: name.value,
 			args: args,
+			return: Return.value,
 			value: statement,
 			lineNumber: token.lineNumber,
 		})
@@ -451,8 +454,10 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 
 Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 	let binary = ["abcd"]
+	// list of function calls
 	let callLocations = {}
-	let functionLocations = {}
+	// list of functions
+	let functions = {}
 	let checkSim = {
 		level: -1,
 		map: [[]],
@@ -461,7 +466,7 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 		lineNumber: 0,
 	}
 
-	// Get the names of all the functions
+	// get the names of all the functions
 	for (let index = 0; index < build_in.length; index++) {
 		const thing = build_in[index];
 		if (thing.lineNumber) checkSim.lineNumber = thing.lineNumber
@@ -471,12 +476,13 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 		if (callLocations[thing.name]) err(`function ${thing.name} already exists`)
 		
 		callLocations[thing.name] = []
+		functions[thing.name] = {}
 	}
 
 	getBinary(build_in)
 
 	// make sure the main function exists
-	if (functionLocations.main == undefined) {
+	if (functions.main == undefined) {
 		// Modlite_compiler.handle_error always expects a line number
 		checkSim.lineNumber = 1
 		err("no main function")
@@ -487,7 +493,7 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 		binary = binary.join("\n")
 	} else {
 		// replace the "abcd" with a jump to the main function
-		binary[0] = Modlite_compiler.binaryCodes.push + getCharacter(String(functionLocations.main)) + Modlite_compiler.binaryCodes.break + Modlite_compiler.binaryCodes.jump
+		binary[0] = Modlite_compiler.binaryCodes.push + getCharacter(String(functions.main.location)) + Modlite_compiler.binaryCodes.break + Modlite_compiler.binaryCodes.jump
 		binary = binary.join("")
 	}
 
@@ -496,7 +502,7 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 			const location = callLocations[key][index];
 			
 			let temp = binary.split("")
-			temp[location] = getCharacter(String(functionLocations[key]))
+			temp[location] = getCharacter(String(functions[key].location))
 			binary = temp.join("")
 		}
 	}
@@ -511,7 +517,9 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 
 			if (thing.type == "function") {
 				if (checkSim.level != 0) err("functions can only be defined at top level")
-				functionLocations[thing.name] = binary.join("").length
+				functions[thing.name].location = binary.join("").length
+				functions[thing.name].args = thing.args
+				functions[thing.name].return = thing.return
 
 				if (humanReadable) {
 					pushToBinary(thing.name + ":")
@@ -608,10 +616,10 @@ Modlite_compiler.handle_error = (error, lineNumber, level) => {
 
     function getLineNumber(lineNumber_in) {
         let lineNumberStr = `${lineNumber_in}`
-        if (lineNumber+3 > 10 && lineNumberStr.length < 2) {
+        if (lineNumber+4 > 10 && lineNumberStr.length < 2) {
             lineNumberStr = "0" + lineNumberStr
         }
-        if (lineNumber+3 > 100 && lineNumberStr.length < 3) {
+        if (lineNumber+4 > 100 && lineNumberStr.length < 3) {
             lineNumberStr = "0" + lineNumberStr
         }
         return lineNumberStr
