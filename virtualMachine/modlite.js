@@ -4,30 +4,34 @@ const binaryCodes = {
 	//
 
 	push: "a",
+	// remove most recent thing on the stack
 	pop: "b",
 	addRegisters: "c",
-	removeRegisters: "z",
+	removeRegisters: "d",
+	// set the value of a register
 	set: "e",
+	// get the value of a register
 	get: "f",
 
 	//
 	// Jumping
 	//
 
+	// jump to a location (takes a single character off the stack. The place to jump into is determined by this characters charCode)
 	jump: "g",
+	// jump but only if a condition is true (does not do anything right now)
 	conditionalJump: "h",
 	// jumps to code in the host programming language
 	externalJump: "i",
-	return: "j",
 
 	//
 	// math
 	//
 
-	// add: "h",
-	// subtract: "i",
-	// multiply: "j",
-	// divide: "k",
+	// add: "j",
+	// subtract: "k",
+	// multiply: "l",
+	// divide: "o",
 	
 	// break character
 	break: "\uFFFF",
@@ -44,6 +48,14 @@ class ModliteRunTime {
 		let i = 0;
 		while (i < binary.length) {
 			const char = binary[i++];
+
+			// uncomment this to watch the stack change while running
+			// for (const key in binaryCodes) {
+			// 	if (binaryCodes[key] == char) {
+			// 		console.log(i, key, this.stack.join(", "))
+			// 	}
+			// }
+
 			if (char == binaryCodes.push) {
 				const data = goToBreak()
 				// console.log("push", data)
@@ -51,15 +63,18 @@ class ModliteRunTime {
 			}
 			
 			else if (char == binaryCodes.pop) {
-				const amount = Number(goToBreak())
-				// console.log("pop", amount)
-				this.stack.splice(this.stack.length - amount, amount)
+				// console.log("pop")
+
+				this.stack.pop()
+
+				// this.stack.splice(this.stack.length - amount, amount)
 			}
 			
 			else if (char == binaryCodes.addRegisters) {
 				this.stack.push(this.arp)
 				this.arp = this.stack.length-1
 				const amount = Number(goToBreak())
+				// console.log("addRegisters", amount)
 				for (let index = 0; index < amount; index++) {
 					this.stack.push(undefined)
 				}
@@ -82,6 +97,7 @@ class ModliteRunTime {
 			
 			else if (char == binaryCodes.get) {
 				const int = goToBreak()
+				// console.log("get", int)
 				this.stack.push(this.stack[Number(this.arp)+Number(int)])
 			}
 			
@@ -109,7 +125,7 @@ class ModliteRunTime {
 			}
 			
 			else {
-				console.log("ignore", char)
+				throw "unexpected character: " + char + " at " + i
 			}
 		}
 	

@@ -30,30 +30,34 @@ const Modlite_compiler = {
 		//
 	
 		push: "a",
+		// remove most recent thing on the stack
 		pop: "b",
 		addRegisters: "c",
-		removeRegisters: "z",
+		removeRegisters: "d",
+		// set the value of a register
 		set: "e",
+		// get the value of a register
 		get: "f",
 	
 		//
 		// Jumping
 		//
 	
+		// jump to a location (takes a single character off the stack. The place to jump into is determined by this characters charCode)
 		jump: "g",
+		// jump but only if a condition is true (does not do anything right now)
 		conditionalJump: "h",
 		// jumps to code in the host programming language
 		externalJump: "i",
-		return: "j",
 	
 		//
 		// math
 		//
 	
-		// add: "h",
-		// subtract: "i",
-		// multiply: "j",
-		// divide: "k",
+		// add: "j",
+		// subtract: "k",
+		// multiply: "l",
+		// divide: "o",
 		
 		// break character
 		break: "\uFFFF",
