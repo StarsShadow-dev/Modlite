@@ -28,6 +28,7 @@ const Modlite_compiler = {
 		push: "a",
 		pop: "b",
 		addRegisters: "c",
+		removeRegisters: "z",
 		set: "e",
 		get: "f",
 		jump: "g",
@@ -302,8 +303,8 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 			})
 		} else if (token.value == "function") {
 			parse_function(token)
-		// } else if (token.value == "var") {
-		// 	parse_var()
+		} else if (token.value == "var") {
+			parse_var()
 		// } else if (token.value == "return") {
 		// 	parse_return()
 		} else {
@@ -343,20 +344,21 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 				right: Modlite_compiler.parse(context, tokens, true)[0],
 			})
 		} else if (token.value == "=") {
-			if (build[build.length-1] && build[build.length-1].type == "var" && build[build.length-1].value == "var") {
-				build.pop()
-				push_to_build({
-					type: "definition",
-					left: prior,
-					right: Modlite_compiler.parse(context, tokens, true)[0],
-				})
-			} else {
-				push_to_build({
-					type: "assignment",
-					left: prior,
-					right: Modlite_compiler.parse(context, tokens, true)[0],
-				})
-			}
+			// if (build[build.length-1] && build[build.length-1].type == "var" && build[build.length-1].value == "var") {
+			// 	build.pop()
+			// 	push_to_build({
+			// 		type: "definition",
+			// 		left: prior,
+			// 		right: Modlite_compiler.parse(context, tokens, true)[0],
+			// 	})
+			// } else {
+				
+			// }
+			push_to_build({
+				type: "assignment",
+				left: prior,
+				right: Modlite_compiler.parse(context, tokens, true)[0],
+			})
 		}
 	}
 
@@ -430,28 +432,24 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 		})
 	}
 
-	// function parse_var() {
-	// 	const left = next_token()
+	function parse_var() {
+		const name = next_token()
 
-	// 	// eat the "="
-	// 	const equals = next_token()
-	// 	if (equals.type != "operator" || equals.value != "=") err("parse_var not an equals")
-		
-	// 	const right = next_token()
+		const type = next_token()
 
-	// 	push_to_build({
-	// 		type: "definition",
-	// 		name: left.value,
-	// 		value: right,
-	// 	})
-	// }
+		push_to_build({
+			type: "definition",
+			name: name.value,
+			variableType: type.value,
+		})
+	}
 
-	// function parse_return() {
-	// 	push_to_build({
-	// 		type: "return",
-	// 		value: next_token(),
-	// 	})
-	// }
+	function parse_return() {
+		push_to_build({
+			type: "return",
+			value: next_token(),
+		})
+	}
 
 	function err(msg) {
 		Modlite_compiler.handle_error(msg, tokens[context.i-1].lineNumber, context.level)
@@ -472,7 +470,6 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 		level: -1,
 		map: [[]],
 		variables: [{}],
-		globals: {},
 		lineNumber: 0,
 	}
 
@@ -489,7 +486,7 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 		functions[thing.name] = {}
 	}
 
-	getBinary(build_in)
+	getBinary(build_in, false)
 
 	// make sure the main function exists
 	if (functions.main == undefined) {
@@ -519,8 +516,39 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 
 	return binary
 
-	function getBinary(build) {
-		checkSim.level++
+	function getBinary(build, expectValues) {
+		if (!expectValues) {
+			checkSim.level++
+			if (!checkSim.variables[checkSim.level]) checkSim.variables[checkSim.level] = {}
+		}
+
+		//
+		// pre loop
+		//
+
+		for (let index = 0; index < build.length; index++) {
+			const thing = build[index];
+			if (thing.lineNumber) checkSim.lineNumber = thing.lineNumber
+
+			if (thing.type == "definition") {
+				checkSim.variables[checkSim.level][thing.name] = {
+					type: thing.variableType,
+					index: Object.keys(checkSim.variables[checkSim.level]).length+1,
+				}
+				if (Object.keys(checkSim.variables[checkSim.level]).length > 0) {
+					if (humanReadable) {
+						pushToBinary("addRegisters: " + Object.keys(checkSim.variables[checkSim.level]).length)
+					} else {
+						pushToBinary(Modlite_compiler.binaryCodes.addRegisters + Object.keys(checkSim.variables[checkSim.level]).length + Modlite_compiler.binaryCodes.break)
+					}
+				}
+			}
+		}
+
+		//
+		// main loop
+		//
+
 		for (let index = 0; index < build.length; index++) {
 			const thing = build[index];
 			if (thing.lineNumber) checkSim.lineNumber = thing.lineNumber
@@ -533,63 +561,89 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 
 				if (humanReadable) {
 					pushToBinary(thing.name + ":")
-					getBinary(thing.value)
+					getBinary(thing.value, false)
 					pushToBinary("jump")
 				}
 				else {
-					getBinary(thing.value)
+					getBinary(thing.value, false)
 					pushToBinary(Modlite_compiler.binaryCodes.jump)
 				}
-			} else if (thing.type == "string") {
+
+			} else if (thing.type == "string" || thing.type == "number") {
+				if (!expectValues) err(`unexpected ${thing.type}`)
 				if (humanReadable)
-				pushToBinary("push string: " + thing.value)
-				else
-				pushToBinary(Modlite_compiler.binaryCodes.push + thing.value + Modlite_compiler.binaryCodes.break)
-			} else if (thing.type == "number") {
-				if (humanReadable)
-				pushToBinary("push number: " + thing.value)
+				pushToBinary(`push ${thing.type}: ` + thing.value)
 				else
 				pushToBinary(Modlite_compiler.binaryCodes.push + thing.value + Modlite_compiler.binaryCodes.break)
 			} else if (thing.type == "bool") {
+				if (!expectValues) err(`unexpected ${thing.type}`)
 				if (humanReadable)
 				pushToBinary("push bool: " + thing.value)
 				else
 				pushToBinary(Modlite_compiler.binaryCodes.push + (thing.value == true ? "1" : "0") + Modlite_compiler.binaryCodes.break)
 			} else if (thing.type == "var") {
-				console.log("var")
-				// if (humanReadable)
-				// pushToBinary("retrive var: " + thing.value)
-				// else
-				// pushToBinary(Modlite_compiler.binaryCodes.retrive + thing.value + Modlite_compiler.binaryCodes.break)
+				if (!expectValues) err(`unexpected ${thing.type}`)
+
+				const variable = checkSim.variables[checkSim.level][thing.value]
+
+				if (humanReadable) {
+					pushToBinary("get: r" + variable.index)
+				}
+				else {
+					pushToBinary(Modlite_compiler.binaryCodes.get + variable.index + Modlite_compiler.binaryCodes.break)
+				}
+			} else if (thing.type == "assignment") {
+				const variable = checkSim.variables[checkSim.level][thing.left.value]
+				if (!variable) err(`variable ${thing.left.value} does not exist`)
+				if (humanReadable) {
+					pushToBinary("push: " + thing.right.value)
+					pushToBinary("set: r" + variable.index)
+				}
+				else {
+					pushToBinary(Modlite_compiler.binaryCodes.push + thing.right.value + Modlite_compiler.binaryCodes.break)
+					pushToBinary(Modlite_compiler.binaryCodes.set + variable.index + Modlite_compiler.binaryCodes.break)
+				}
 			} else if (thing.type == "call") {
 				if (callLocations[thing.name]) {
 					if (humanReadable) {
 						pushToBinary("push location to return to")
-						getBinary(thing.value)
+						getBinary(thing.value, true)
 						pushToBinary("push location to go to")
 						pushToBinary("jump")
 					}
 					else {
 						let stuff = Modlite_compiler.binaryCodes.push + "*" + Modlite_compiler.binaryCodes.break + Modlite_compiler.binaryCodes.jump
 						pushToBinary(Modlite_compiler.binaryCodes.push + getCharacter(String(binary.join("").length + stuff.length + 3)) + Modlite_compiler.binaryCodes.break)
-						getBinary(thing.value)
+						getBinary(thing.value, true)
 						callLocations[thing.name].push(binary.join("").length + 1)
 						pushToBinary(stuff)
 					}
 				} else {
 					if (humanReadable) {
-						getBinary(thing.value)
+						getBinary(thing.value, true)
 						pushToBinary("push string: " + thing.name)
 						pushToBinary("externalJump")
 					}
 					else {
-						getBinary(thing.value)
+						getBinary(thing.value, true)
 						pushToBinary(Modlite_compiler.binaryCodes.push + thing.name + Modlite_compiler.binaryCodes.break + Modlite_compiler.binaryCodes.externalJump)
 					}
 				}
 			}
 		}
-		checkSim.level--
+
+		if (!expectValues) {
+			if (Object.keys(checkSim.variables[checkSim.level]).length > 0) {
+				if (humanReadable) {
+					pushToBinary("removeRegisters: " + Object.keys(checkSim.variables[checkSim.level]).length)
+				} else {
+					pushToBinary(Modlite_compiler.binaryCodes.removeRegisters + Object.keys(checkSim.variables[checkSim.level]).length + Modlite_compiler.binaryCodes.break)
+				}
+			}
+
+			delete checkSim.variables[checkSim.level]
+			checkSim.level--
+		}
 	}
 
 	function getCharacter(string) {

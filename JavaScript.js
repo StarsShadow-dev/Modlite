@@ -1,21 +1,12 @@
 const binaryCodes = {
-
 	//
 	// information management
 	//
 
-	// retrive: "r",
-
-	// string: "a",
-	// number: "b",
-	// null: "c",
-	// bool: "d",
-
 	push: "a",
 	pop: "b",
-
 	addRegisters: "c",
-
+	removeRegisters: "z",
 	set: "e",
 	get: "f",
 
@@ -37,24 +28,15 @@ const binaryCodes = {
 	// subtract: "i",
 	// multiply: "j",
 	// divide: "k",
-
+	
+	// break character
 	break: "\uFFFF",
 }
-
-var experimentalProgram = [
-	binaryCodes.push,"Hello World",binaryCodes.break,
-	binaryCodes.externalJump,"print",binaryCodes.break,
-
-	// binaryCodes.push,"0",binaryCodes.break,
-	// binaryCodes.jump,
-
-	binaryCodes.push,"error",binaryCodes.break,
-	binaryCodes.externalJump,"print",binaryCodes.break,
-].join("")
 
 class ModliteRunTime {
 	exposedFunctions = {}
 	stack = []
+	arp = 0 // activation record pointer
 	reset = () => {
 		this.stack = []
 	}
@@ -66,50 +48,70 @@ class ModliteRunTime {
 				const data = goToBreak()
 				// console.log("push", data)
 				this.stack.push(data)
-			} else if (char == binaryCodes.pop) {
+			}
+			
+			else if (char == binaryCodes.pop) {
 				const amount = Number(goToBreak())
-				console.log("pop", amount)
+				// console.log("pop", amount)
 				this.stack.splice(this.stack.length - amount, amount)
-			} else if (char == binaryCodes.addRegisters) {
+			}
+			
+			else if (char == binaryCodes.addRegisters) {
+				this.stack.push(this.arp)
+				this.arp = this.stack.length-1
 				const amount = Number(goToBreak())
 				for (let index = 0; index < amount; index++) {
 					this.stack.push(undefined)
 				}
-			} else if (char == binaryCodes.set) {
-			} else if (char == binaryCodes.get) {
-			} else if (char == binaryCodes.jump) {
+				
+			}
+			
+			else if (char == binaryCodes.removeRegisters) {
+				const amount = Number(goToBreak())
+				// console.log("removeRegisters", amount)
+				this.stack.splice(this.stack.length - amount, amount)
+				this.arp = this.stack.pop()
+			}
+			
+			else if (char == binaryCodes.set) {
+				const int = goToBreak()
+				const value = this.stack.pop()
+				// console.log("set", int, value)
+				this.stack[Number(this.arp)+Number(int)] = value
+			}
+			
+			else if (char == binaryCodes.get) {
+				const int = goToBreak()
+				this.stack.push(this.stack[Number(this.arp)+Number(int)])
+			}
+			
+			else if (char == binaryCodes.jump) {
 				// if the stack is empty end program
 				if (this.stack.length == 0) break
 				const location = charToBaseTen(this.stack.pop())
 				// console.log("jump", location)
 				i = location
-			} else if (char == binaryCodes.conditionalJump) {
+			}
+			
+			else if (char == binaryCodes.conditionalJump) {
 				// const location = Number(goToBreak())
 				// const condition = this.stack.pop()
 				// console.log("conditionalJump", location, condition)
 				// if (condition == "1") {
 				// 	i = location
 				// }
-			} else if (char == binaryCodes.externalJump) {
+			}
+			
+			else if (char == binaryCodes.externalJump) {
 				const name = this.stack.pop()
 				// console.log("externalJump", name)
 				this.exposedFunctions[name]()
-			} else {
+			}
+			
+			else {
 				console.log("ignore", char)
 			}
 		}
-
-		// function goToSpaceOrBreak() {
-		// 	let past = ""
-		// 	while (true) {
-		// 		const char = binary[i++];
-		// 		if (!char || char == " " || char == "\uFFFF") {
-		// 			return past
-		// 		} else {
-		// 			past += char
-		// 		}
-		// 	}
-		// }
 	
 		function goToBreak() {
 			let past = ""
@@ -122,14 +124,6 @@ class ModliteRunTime {
 				}
 			}
 		}
-	
-		function goForChars(length) {
-			let past = ""
-			for (let index = 0; index < length; index++) {
-				past += binary[i++];
-			}
-			return past
-		}
 	}
 }
 
@@ -138,5 +132,4 @@ function charToBaseTen(char) {
 }
 
 // uncomment this when using node
-
 // export default ModliteRunTime
