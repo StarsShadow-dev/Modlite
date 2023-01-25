@@ -25,16 +25,37 @@ const Modlite_compiler = {
 	operator: /[\+\-\*\/\=]/,
 	
 	binaryCodes: {
+		//
+		// information management
+		//
+	
 		push: "a",
 		pop: "b",
 		addRegisters: "c",
 		removeRegisters: "z",
 		set: "e",
 		get: "f",
+	
+		//
+		// Jumping
+		//
+	
 		jump: "g",
 		conditionalJump: "h",
+		// jumps to code in the host programming language
 		externalJump: "i",
 		return: "j",
+	
+		//
+		// math
+		//
+	
+		// add: "h",
+		// subtract: "i",
+		// multiply: "j",
+		// divide: "k",
+		
+		// break character
 		break: "\uFFFF",
 	},
 }
