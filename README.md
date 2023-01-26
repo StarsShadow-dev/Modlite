@@ -7,7 +7,7 @@ To run a binary Import `./virtualMachine/modlite.js` and run:
 const runTime = new ModliteRunTime()
 ```
 
-To add exposed functions to the run time:
+To add exposed functions to the runTime:
 ```JavaScript
 runTime.exposedFunctions[function_name] = () => {
 	// code
@@ -16,4 +16,4 @@ runTime.exposedFunctions[function_name] = () => {
 
 ## Swift _(unfinished)_
 
-The Swift runTime is intended to be a mirror of the JavaScript run time.
+The Swift runTime is intended to be a mirror of the JavaScript runTime.
