@@ -1,0 +1,8 @@
+// this should print "success?" (and not get stuck in an infinite loop)
+function main() void {
+    test("input")
+}
+
+function test(msg:string) void {
+    print("success?")
+}
