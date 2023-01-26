@@ -1,3 +1,10 @@
+/*
+	RunTime version 1
+
+	For JavaScript.
+	Can running a web browser and should be able to run in node.
+*/
+
 const binaryCodes = {
 	//
 	// information management

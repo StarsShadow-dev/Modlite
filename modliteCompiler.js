@@ -7,7 +7,7 @@
 
 // Modlite building environment
 const Modlite_compiler = {
-	version: "12.1",
+	version: "12.1.0",
 	string: "",
 	devlog: true,
 
