@@ -63,11 +63,9 @@ class ModliteRunTime {
 			}
 			
 			else if (char == binaryCodes.pop) {
-				// console.log("pop")
-
-				this.stack.pop()
-
-				// this.stack.splice(this.stack.length - amount, amount)
+				const amount = Number(goToBreak())
+				// console.log("pop", amount)
+				this.stack.splice(this.stack.length - amount, amount)
 			}
 			
 			else if (char == binaryCodes.addRegisters) {

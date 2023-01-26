@@ -531,10 +531,10 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 
 	for (const key in callLocations) {
 		for (let index = 0; index < callLocations[key].length; index++) {
-			const location = callLocations[key][index];
+			const charPosition = callLocations[key][index];
 			
 			let temp = binary.split("")
-			temp[location] = getCharacter(String(functions[key].location))
+			temp[charPosition] = getCharacter(String(functions[key].location))
 			binary = temp.join("")
 		}
 	}
@@ -555,7 +555,11 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 			const thing = build[index];
 			if (thing.lineNumber) checkSim.lineNumber = thing.lineNumber
 
-			if (thing.type == "definition") {
+			if (thing.type == "function") {
+				if (checkSim.level != 0) err("functions can only be defined at top level")
+				functions[thing.name].args = thing.args
+				functions[thing.name].return = thing.return
+			} else if (thing.type == "definition") {
 				checkSim.variables[checkSim.level][thing.name] = {
 					type: thing.variableType,
 					index: Object.keys(checkSim.variables[checkSim.level]).length+1,
@@ -579,18 +583,17 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 			if (thing.lineNumber) checkSim.lineNumber = thing.lineNumber
 
 			if (thing.type == "function") {
-				if (checkSim.level != 0) err("functions can only be defined at top level")
 				functions[thing.name].location = binary.join("").length
-				functions[thing.name].args = thing.args
-				functions[thing.name].return = thing.return
 
 				if (humanReadable) {
 					pushToBinary(thing.name + ":")
 					getBinary(thing.value, false)
+					if (functions[thing.name].args.length > 0) pushToBinary("pop: " + functions[thing.name].args.length)
 					pushToBinary("jump")
 				}
 				else {
 					getBinary(thing.value, false)
+					if (functions[thing.name].args.length > 0) pushToBinary(Modlite_compiler.binaryCodes.pop + functions[thing.name].args.length + Modlite_compiler.binaryCodes.break)
 					pushToBinary(Modlite_compiler.binaryCodes.jump)
 				}
 
@@ -611,6 +614,8 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 
 				const variable = checkSim.variables[checkSim.level][thing.value]
 
+				if (!variable) err("variable " + thing.value + " does not exist")
+
 				if (humanReadable) {
 					pushToBinary("get: r" + variable.index)
 				}
@@ -630,6 +635,8 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 				}
 			} else if (thing.type == "call") {
 				if (callLocations[thing.name]) {
+					if (functions[thing.name].args.length < thing.value.length) err("not enough arguments")
+					if (functions[thing.name].args.length > thing.value.length) err("too many arguments")
 					if (humanReadable) {
 						pushToBinary("push location to return to")
 						getBinary(thing.value, true)
@@ -638,7 +645,10 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 					}
 					else {
 						let stuff = Modlite_compiler.binaryCodes.push + "*" + Modlite_compiler.binaryCodes.break + Modlite_compiler.binaryCodes.jump
-						pushToBinary(Modlite_compiler.binaryCodes.push + getCharacter(String(binary.join("").length + stuff.length + 3)) + Modlite_compiler.binaryCodes.break)
+
+						// push location to return to is very finicky but (binary.join("").length + stuff.length + stuff.length + 3) seems to work
+						// more experimentation is required for how to compile jumps
+						pushToBinary(Modlite_compiler.binaryCodes.push + getCharacter(String(binary.join("").length + stuff.length + stuff.length + 3)) + Modlite_compiler.binaryCodes.break)
 						getBinary(thing.value, true)
 						callLocations[thing.name].push(binary.join("").length + 1)
 						pushToBinary(stuff)
