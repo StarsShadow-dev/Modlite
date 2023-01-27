@@ -1,5 +1,5 @@
 /*
-	RunTime version 1
+	RunTime version 2
 
 	For JavaScript.
 	Can running a web browser and should be able to run in node.
@@ -54,12 +54,13 @@ class ModliteRunTime {
 	run = (binary) => {
 		let i = 0;
 		while (i < binary.length) {
-			const char = binary[i++];
+			const char = binary[i];
 
 			// uncomment this to watch the stack change while running
 			// for (const key in binaryCodes) {
 			// 	if (binaryCodes[key] == char) {
 			// 		console.log(i, key, this.stack.join(", "))
+			// 		break
 			// 	}
 			// }
 
@@ -112,6 +113,7 @@ class ModliteRunTime {
 				const location = charToBaseTen(this.stack.pop())
 				// console.log("jump", location)
 				i = location
+				continue
 			}
 			
 			else if (char == binaryCodes.conditionalJump) {
@@ -132,12 +134,14 @@ class ModliteRunTime {
 			else {
 				throw "unexpected character: " + char + " at " + i
 			}
+
+			i++
 		}
 	
 		function goToBreak() {
 			let past = ""
 			while (true) {
-				const char = binary[i++];
+				const char = binary[++i];
 				if (!char || char == "\uFFFF") {
 					return past
 				} else {

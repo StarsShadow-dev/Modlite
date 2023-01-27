@@ -486,7 +486,7 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 }
 
 Modlite_compiler.generateBinary = (build_in, humanReadable) => {
-	let binary = ["abcd"]
+	let binary = "abcd"
 	// list of function calls
 	let callLocations = {}
 	// list of functions
@@ -521,12 +521,18 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 	}
 
 	if (humanReadable) {
-		binary[0] = "jump_to_main"
-		binary = binary.join("\n")
+		let temp = binary.split("")
+		temp[0] = undefined; temp[1] = undefined; temp[2] = undefined; temp[3] = undefined;
+		binary = temp.join("")
+		binary = "jump_to_main\n" + binary
 	} else {
 		// replace the "abcd" with a jump to the main function
-		binary[0] = Modlite_compiler.binaryCodes.push + getCharacter(String(functions.main.location)) + Modlite_compiler.binaryCodes.break + Modlite_compiler.binaryCodes.jump
-		binary = binary.join("")
+		let temp = binary.split("")
+		temp[0] = Modlite_compiler.binaryCodes.push
+		temp[1] = getCharacter(String(functions.main.location))
+		temp[2] = Modlite_compiler.binaryCodes.break
+		temp[3] = Modlite_compiler.binaryCodes.jump
+		binary = temp.join("")
 	}
 
 	for (const key in callLocations) {
@@ -583,7 +589,7 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 			if (thing.lineNumber) checkSim.lineNumber = thing.lineNumber
 
 			if (thing.type == "function") {
-				functions[thing.name].location = binary.join("").length
+				functions[thing.name].location = binary.length
 
 				if (humanReadable) {
 					pushToBinary(thing.name + ":")
@@ -635,8 +641,8 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 				}
 			} else if (thing.type == "call") {
 				if (callLocations[thing.name]) {
-					if (functions[thing.name].args.length < thing.value.length) err("not enough arguments")
-					if (functions[thing.name].args.length > thing.value.length) err("too many arguments")
+					if (functions[thing.name].args.length > thing.value.length) err("not enough arguments")
+					if (functions[thing.name].args.length < thing.value.length) err("too many arguments")
 					if (humanReadable) {
 						pushToBinary("push location to return to")
 						getBinary(thing.value, true)
@@ -644,14 +650,18 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 						pushToBinary("jump")
 					}
 					else {
-						let stuff = Modlite_compiler.binaryCodes.push + "*" + Modlite_compiler.binaryCodes.break + Modlite_compiler.binaryCodes.jump
-
-						// push location to return to is very finicky but (binary.join("").length + stuff.length + stuff.length + 3) seems to work
-						// more experimentation is required for how to compile jumps
-						pushToBinary(Modlite_compiler.binaryCodes.push + getCharacter(String(binary.join("").length + stuff.length + stuff.length + 3)) + Modlite_compiler.binaryCodes.break)
+						const returnToCharLocation = binary.length + 1
+						pushToBinary(Modlite_compiler.binaryCodes.push + "*" + Modlite_compiler.binaryCodes.break)
 						getBinary(thing.value, true)
-						callLocations[thing.name].push(binary.join("").length + 1)
-						pushToBinary(stuff)
+
+						callLocations[thing.name].push(binary.length + 1)
+						
+						pushToBinary(Modlite_compiler.binaryCodes.push + "*" + Modlite_compiler.binaryCodes.break)
+						pushToBinary(Modlite_compiler.binaryCodes.jump)
+
+						let temp = binary.split("")
+						temp[returnToCharLocation] = getCharacter(String(binary.length))
+						binary = temp.join("")
 					}
 				} else {
 					if (humanReadable) {
@@ -686,7 +696,11 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 	}
 
 	function pushToBinary(string) {
-		binary.push(string)
+		if (humanReadable) {
+			binary += string + "\n"
+		} else {
+			binary += string
+		}
 	}
 
 	function err(msg) {
