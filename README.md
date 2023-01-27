@@ -36,10 +36,6 @@ The compiler is written entirely in JavaScript and can run in a web browser
 
 Also known as tokenizing this step splits the code into tokens:
 
-```JavaScript
-Modlite_compiler.lex(`print("hello")`)
-```
-
 in
 ```modlite
 print("hello")
@@ -172,7 +168,7 @@ runTime.exposedFunctions[function_name] = () => {
 }
 ```
 
-To run a binary:
+To run an opCode:
 ```JavaScript
 runTime.run(opCode)
 ```
