@@ -575,9 +575,9 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 
 		if (!expectValues && checkSim.level != 0) {
 			if (humanReadable) {
-				pushToBinary("addRegisters: " + Object.keys(checkSim.variables[checkSim.level]).length)
+				pushToBinary("addRegisters: " + getRegisterRequirement())
 			} else {
-				pushToBinary(Modlite_compiler.binaryCodes.addRegisters + Object.keys(checkSim.variables[checkSim.level]).length + Modlite_compiler.binaryCodes.break)
+				pushToBinary(Modlite_compiler.binaryCodes.addRegisters + getRegisterRequirement() + Modlite_compiler.binaryCodes.break)
 			}
 		}
 
@@ -598,7 +598,7 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 					const arg = thing.args[i];
 					checkSim.variables[checkSim.level+1][arg.name] = {
 						type: arg.type,
-						index: i-1,
+						index: i-2,
 					}
 				}
 
@@ -691,15 +691,26 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 		if (!expectValues) {
 			if (checkSim.level != 0) {
 				if (humanReadable) {
-					pushToBinary("removeRegisters: " + Object.keys(checkSim.variables[checkSim.level]).length)
+					pushToBinary("removeRegisters: " + getRegisterRequirement())
 				} else {
-					pushToBinary(Modlite_compiler.binaryCodes.removeRegisters + Object.keys(checkSim.variables[checkSim.level]).length + Modlite_compiler.binaryCodes.break)
+					pushToBinary(Modlite_compiler.binaryCodes.removeRegisters + getRegisterRequirement() + Modlite_compiler.binaryCodes.break)
 				}
 			}
 
 			delete checkSim.variables[checkSim.level]
 			checkSim.level--
 		}
+	}
+
+	function getRegisterRequirement() {
+		let count = 0
+		for (const key in checkSim.variables[checkSim.level]) {
+			if (checkSim.variables[checkSim.level][key].index > 0) {
+				count++
+			}
+		}
+
+		return count
 	}
 
 	function getCharacter(string) {
