@@ -570,13 +570,14 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 					type: thing.variableType,
 					index: Object.keys(checkSim.variables[checkSim.level]).length+1,
 				}
-				if (Object.keys(checkSim.variables[checkSim.level]).length > 0) {
-					if (humanReadable) {
-						pushToBinary("addRegisters: " + Object.keys(checkSim.variables[checkSim.level]).length)
-					} else {
-						pushToBinary(Modlite_compiler.binaryCodes.addRegisters + Object.keys(checkSim.variables[checkSim.level]).length + Modlite_compiler.binaryCodes.break)
-					}
-				}
+			}
+		}
+
+		if (!expectValues && checkSim.level != 0) {
+			if (humanReadable) {
+				pushToBinary("addRegisters: " + Object.keys(checkSim.variables[checkSim.level]).length)
+			} else {
+				pushToBinary(Modlite_compiler.binaryCodes.addRegisters + Object.keys(checkSim.variables[checkSim.level]).length + Modlite_compiler.binaryCodes.break)
 			}
 		}
 
@@ -591,8 +592,18 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 			if (thing.type == "function") {
 				functions[thing.name].location = binary.length
 
+				checkSim.variables[checkSim.level+1] = {}
+
+				for (let i = 0; i < thing.args.length; i++) {
+					const arg = thing.args[i];
+					checkSim.variables[checkSim.level+1][arg.name] = {
+						type: arg.type,
+						index: i-1,
+					}
+				}
+
 				if (humanReadable) {
-					pushToBinary(thing.name + ":")
+					pushToBinary("\n" + thing.name + ":")
 					getBinary(thing.value, false)
 					if (functions[thing.name].args.length > 0) pushToBinary("pop: " + functions[thing.name].args.length)
 					pushToBinary("jump")
@@ -623,7 +634,7 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 				if (!variable) err("variable " + thing.value + " does not exist")
 
 				if (humanReadable) {
-					pushToBinary("get: r" + variable.index)
+					pushToBinary("get: " + variable.index)
 				}
 				else {
 					pushToBinary(Modlite_compiler.binaryCodes.get + variable.index + Modlite_compiler.binaryCodes.break)
@@ -633,7 +644,7 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 				if (!variable) err(`variable ${thing.left.value} does not exist`)
 				if (humanReadable) {
 					pushToBinary("push: " + thing.right.value)
-					pushToBinary("set: r" + variable.index)
+					pushToBinary("set: " + variable.index)
 				}
 				else {
 					pushToBinary(Modlite_compiler.binaryCodes.push + thing.right.value + Modlite_compiler.binaryCodes.break)
@@ -655,7 +666,7 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 						getBinary(thing.value, true)
 
 						callLocations[thing.name].push(binary.length + 1)
-						
+
 						pushToBinary(Modlite_compiler.binaryCodes.push + "*" + Modlite_compiler.binaryCodes.break)
 						pushToBinary(Modlite_compiler.binaryCodes.jump)
 
@@ -678,7 +689,7 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 		}
 
 		if (!expectValues) {
-			if (Object.keys(checkSim.variables[checkSim.level]).length > 0) {
+			if (checkSim.level != 0) {
 				if (humanReadable) {
 					pushToBinary("removeRegisters: " + Object.keys(checkSim.variables[checkSim.level]).length)
 				} else {

@@ -14,7 +14,7 @@ It consists of two parts:
 
 # Syntax
 
-**Note that while function calls work function arguments do not work properly at the moment.**
+**Note that while function calls work function arguments may not work properly at the moment.**
 
 Start by creating a main function:
 
