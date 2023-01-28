@@ -330,8 +330,8 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 			parse_function(token)
 		} else if (token.value == "var") {
 			parse_var()
-		// } else if (token.value == "return") {
-		// 	parse_return()
+		} else if (token.value == "import") {
+			parse_import()
 		} else {
 			push_to_build({
 				type: "var",
@@ -476,6 +476,17 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 		})
 	}
 
+	function parse_import() {
+		const name = next_token()
+
+		if (name.type != "string") err("expected string")
+
+		push_to_build({
+			type: "import",
+			name: name.value,
+		})
+	}
+
 	function err(msg) {
 		Modlite_compiler.handle_error(msg, tokens[context.i-1].lineNumber, context.level)
 		throw "[parser error]";
@@ -503,12 +514,16 @@ Modlite_compiler.generateBinary = (build_in, humanReadable) => {
 		const thing = build_in[index];
 		if (thing.lineNumber) checkSim.lineNumber = thing.lineNumber
 
-		if (thing.type != "function") err("not a function at top level")
-
-		if (callLocations[thing.name]) err(`function ${thing.name} already exists`)
+		if (thing.type == "function") {
+			if (callLocations[thing.name]) err(`function ${thing.name} already exists`)
 		
-		callLocations[thing.name] = []
-		functions[thing.name] = {}
+			callLocations[thing.name] = []
+			functions[thing.name] = {}
+		} else if (thing.type == "import") {
+			console.log("import", thing.name)
+		} else {
+			err("not a function or import at top level")
+		}
 	}
 
 	getBinary(build_in, false)
