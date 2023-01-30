@@ -4,8 +4,8 @@
 	A work in progress programming language.
 	Currently compiles to a custom operation code and can run in JavaScript.
 
-	npm run go ./test
-	npm run go ./test true
+	node modliteCompiler.js ./test
+	node modliteCompiler.js ./test true
 */
 
 // Modlite building environment
@@ -583,8 +583,6 @@ if (!rootPath) throw "no path specified (npm run go ${path})"
 const logEverything = process.argv[3] == "true"
 
 Modlite_compiler.compileCode = (rootPath) => {
-	console.log("rootPath: ", rootPath)
-
 	const jsonString = fs.readFileSync(join(rootPath, "conf.json"), "utf8")
 
 	const conf = JSON.parse(jsonString)
@@ -622,27 +620,32 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 
 	let level = -1
 	let lineNumber = 0
+	let variables = [{}]
 
-	files[path] = [{}]
+	files[path] = {}
 
 	for (let index = 0; index < build_in.length; index++) {
 		const thing = build_in[index];
 		if (thing.lineNumber) lineNumber = thing.lineNumber
 
 		if (thing.type == "function") {
-			if (files[path][0][thing.name]) err(`function ${thing.name} already exists`)
+			if (variables[0][thing.name]) err(`function ${thing.name} already exists`)
 		
-			files[path][0][thing.name] = {
+			variables[0][thing.name] = {
 
 			}
 		} else if (thing.type == "import") {
 			if (thing.path.endsWith(".modlite")) {
-				err("not yet supported")
-				// if (files[path][0][thing.path]) {
+				if (!files[thing.path]) {
+					Modlite_compiler.getAssembly(rootPath, thing.path, files, assembly)
+				}
+				for (let i = 0; i < thing.imports.length; i++) {
+					const importName = thing.imports[i];
 
-				// } else {
-				// 	// await Modlite_compiler.getAssembly(rootPath, thing.path, map, assembly)
-				// }
+					if (!files[thing.path][importName]) err(`import ${importName} from modlite file ${thing.path} not found`)
+
+					variables[importName] = files[path][thing.path]
+				}
 				const text = fs.readFileSync(join(rootPath, thing.path), "utf8")
 			} if (thing.path.endsWith(".json")) {
 				const jsonString = fs.readFileSync(join(rootPath, thing.path), "utf8")
@@ -652,12 +655,12 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 				for (let i = 0; i < thing.imports.length; i++) {
 					const importName = thing.imports[i];
 					
-					if (!json[importName]) err(`import ${importName} not found`)
+					if (!json[importName]) err(`import ${importName} from json file ${thing.path} not found`)
 
-					if (files[path][0][importName]) err (`Import with name ${importName} failed. Because a function named ${importName} already exists.`)
+					if (variables[0][importName]) err (`Import with name ${importName} failed. Because a function named ${importName} already exists.`)
 
-					files[path][0][importName] = json[importName]
-					files[path][0][importName].isExposedFunction = true
+					variables[0][importName] = json[importName]
+					variables[0][importName].isExposedFunction = true
 				}
 			} else {
 				err("not a valid file extension")
@@ -674,7 +677,7 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 	function assemblyLoop(build, expectValues) {
 		if (!expectValues) {
 			level++
-			if (!files[path][level]) files[path][level] = {}
+			if (!variables[level]) variables[level] = {}
 		}
 
 		//
@@ -687,12 +690,12 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 	
 			if (thing.type == "function") {
 				if (level != 0) err("functions can only be defined at top level")
-				files[path][0][thing.name].args = thing.args
-				files[path][0][thing.name].return = thing.return
+				variables[0][thing.name].args = thing.args
+				variables[0][thing.name].return = thing.return
 			} else if (thing.type == "definition") {
-				files[path][level][thing.name] = {
+				variables[level][thing.name] = {
 					type: thing.variableType,
-					index: Object.keys(files[path][level]).length+1,
+					index: Object.keys(variables[level]).length+1,
 				}
 			}
 		}
@@ -710,11 +713,11 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 			if (thing.lineNumber) lineNumber = thing.lineNumber
 			
 			if (thing.type == "function") {
-				files[path][level+1] = {}
+				variables[level+1] = {}
 
 				for (let i = 0; i < thing.args.length; i++) {
 					const arg = thing.args[i];
-					files[path][level+1][arg.name] = {
+					variables[level+1][arg.name] = {
 						type: arg.type,
 						index: i-2,
 					}
@@ -722,7 +725,7 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 
 				pushToAssembly([`@${thing.name}`])
 				assemblyLoop(thing.value, false)
-				if (files[path][0][thing.name].args.length > 0) pushToAssembly(["pop", files[path][0][thing.name].args.length])
+				if (variables[0][thing.name].args.length > 0) pushToAssembly(["pop", variables[0][thing.name].args.length])
 				pushToAssembly(["jump"])
 			}
 			
@@ -738,30 +741,34 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 				pushToAssembly(["push", "#" + thing.value == true ? "1" : "0"])
 			}
 			
+			// get a variable `print(a)`
+			//                       ^
 			else if (thing.type == "var") {
 				if (!expectValues) err(`unexpected ${thing.type}`)
 
-				const variable = files[path][level][thing.value]
-
+				const variable = getVariable(thing.value)
 				if (!variable) err("variable " + thing.value + " does not exist")
 
 				pushToAssembly(["get", variable.index])
 			}
 			
 			else if (thing.type == "assignment") {
-				const variable = files[path][level][thing.left.value]
+				const variable = getVariable(thing.left.value)
 				if (!variable) err(`variable ${thing.left.value} does not exist`)
+
 				pushToAssembly(["push", thing.right.value])
 				pushToAssembly(["set", variable.index])
 			}
 			
 			else if (thing.type == "call") {
-				if (!files[path][0][thing.name]) err("unknown variable name " + thing.name)
+				const variable = getVariable(thing.name)
 
-				if (files[path][0][thing.name].args.length > thing.value.length) err("not enough arguments")
-				if (files[path][0][thing.name].args.length < thing.value.length) err("too many arguments")
+				if (!variable) err("unknown variable name " + thing.name)
 
-				if (files[path][0][thing.name].isExposedFunction) {
+				if (variable.args.length > thing.value.length) err(`not enough arguments for ${thing.name} requires ${variable.args.length}`)
+				if (variable.args.length < thing.value.length) err(`too many arguments for ${thing.name} requires ${variable.args.length}`)
+
+				if (variable.isExposedFunction) {
 					assemblyLoop(thing.value, true)
 					pushToAssembly(["push", "#" + thing.name])
 					pushToAssembly(["externalJump"])
@@ -781,8 +788,20 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 				pushToAssembly(["removeRegisters", getRegisterRequirement()])
 			}
 
-			delete files[path][level]
+			delete variables[level]
 			level--
+		}
+	}
+
+	function getVariable(name) {
+		for (let i = 0; i < variables.length; i++) {
+			if (variables[i][name]) return variables[i][name]
+		}
+	}
+
+	function setVariable(name, value) {
+		for (let i = 0; i < variables.length; i++) {
+			if (variables[i][name]) variables[i][name] = value
 		}
 	}
 
@@ -792,8 +811,8 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 
 	function getRegisterRequirement() {
 		let count = 0
-		for (const key in files[path][level]) {
-			if (files[path][level][key].index > 0) {
+		for (const key in variables[level]) {
+			if (variables[level][key].index > 0) {
 				count++
 			}
 		}
