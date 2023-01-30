@@ -528,7 +528,7 @@ Modlite_compiler.handle_error = (error, lineNumber, level) => {
     if (lines[lineNumber-4] != undefined) msg += getLineNumber(lineNumber-3) + " | "       + removeSpacesOrTabsAtStart(lines[lineNumber-4]) + "\n"
     if (lines[lineNumber-3] != undefined) msg += getLineNumber(lineNumber-2) + " | "       + removeSpacesOrTabsAtStart(lines[lineNumber-3]) + "\n"
     if (lines[lineNumber-2] != undefined) msg += getLineNumber(lineNumber-1) + " | "       + removeSpacesOrTabsAtStart(lines[lineNumber-2]) + "\n"
-    if (lines[lineNumber-1] != undefined) msg += getLineNumber(lineNumber  ) + " | =->   " + removeSpacesOrTabsAtStart(lines[lineNumber-1]) + "\n"
+    if (lines[lineNumber-1] != undefined) msg += getLineNumber(lineNumber  ) + " | =->	" + removeSpacesOrTabsAtStart(lines[lineNumber-1]) + "\n"
     if (lines[lineNumber  ] != undefined) msg += getLineNumber(lineNumber+1) + " | "       + removeSpacesOrTabsAtStart(lines[lineNumber  ]) + "\n"
     if (lines[lineNumber+1] != undefined) msg += getLineNumber(lineNumber+2) + " | "       + removeSpacesOrTabsAtStart(lines[lineNumber+1]) + "\n"
     if (lines[lineNumber+2] != undefined) msg += getLineNumber(lineNumber+3) + " | "       + removeSpacesOrTabsAtStart(lines[lineNumber+2]) + "\n"
@@ -553,7 +553,7 @@ Modlite_compiler.handle_error = (error, lineNumber, level) => {
         let newString = ""
         let foundChar = false
         for (let i = 0; i < string.length; i++) {
-            if (!foundChar && (string[i] == " " || string[i] == "   ")) continue
+            if (!foundChar && (string[i] == " " || string[i] == "\t")) continue
              
             newString += string[i]
             foundChar = true
@@ -576,75 +576,92 @@ Modlite_compiler.assemblyToOperationCode = (assembly) => {
 import fs from "fs"
 import { join } from "path"
 
+const rootPath = process.argv[2]
+
+if (!rootPath) throw "no path specified (npm run go ${path})"
+
 const logEverything = process.argv[3] == "true"
 
-Modlite_compiler.compileCode = (path) => {
-	console.log("path: ", path)
+Modlite_compiler.compileCode = (rootPath) => {
+	console.log("rootPath: ", rootPath)
 
-	fs.readFile(join(path, "conf.json"), "utf8", (err, jsonString) => {
-		if (err) throw err
+	const jsonString = fs.readFileSync(join(rootPath, "conf.json"), "utf8")
 
-		const conf = JSON.parse(jsonString)
+	const conf = JSON.parse(jsonString)
 
-		if (logEverything) console.log("conf: ", conf)
+	if (logEverything) console.log("conf: ", conf)
 
-		if (!conf.entry) throw "no entry in conf"
+	if (!conf.entry) throw "no entry in conf"
 
-		Modlite_compiler.compileFile(join(path, conf.entry))
-	})
-}
+	try {
+		let files = {}
+		let assembly = [
+			"push", "*main", "\n",
+			"jump", "\n"
+		]
+		Modlite_compiler.getAssembly(rootPath, conf.entry, files, assembly)
+		if (logEverything) console.log("assembly:\n " + assembly.join(" ") + "\n")
 
-Modlite_compiler.compileFile = (path) => {
-	fs.readFile(path, "utf8", (err, text) => {
-		if (err) throw err
-
-		try {
-			if (logEverything) console.log(path + ":\n" + text + "\n")
-
-			const tokens = Modlite_compiler.lex(text)
-			if (logEverything) console.log("tokens:\n" + JSON.stringify(tokens, null, 2) + "\n")
-
-			const build = Modlite_compiler.parse({ lineNumber: 1, level: -1, i: 0 }, tokens, false)
-			if (logEverything) console.log("build:\n" + JSON.stringify(build, null, 2) + "\n")
-
-			const assembly = Modlite_compiler.getAssembly(build)
-			if (logEverything) console.log("assembly:\n " + assembly.join(" ") + "\n")
-
-			const opCode = Modlite_compiler.assemblyToOperationCode(assembly)
-			if (logEverything) console.log("opCode:\n" + opCode + "\n")
-		} catch (error) {
-			if (error != "[lexar error]" && error != "[parser error]" && error != "[getAssembly error]") throw error
-			return
-		}
-	})
-}
-
-Modlite_compiler.getAssembly = (build_in) => {
-	let assembly = []
-
-	pushToAssembly(["push", "*main"])
-	pushToAssembly(["jump"])
-
-	let map = {
-		level: -1,
-		variables: [{}],
-		lineNumber: 0,
-
-		// list of functions
-		functions: {},
+		const opCode = Modlite_compiler.assemblyToOperationCode(assembly)
+		if (logEverything) console.log("opCode:\n" + opCode + "\n")
+	} catch (error) {
+		if (error != "[lexar error]" && error != "[parser error]" && error != "[getAssembly error]") throw error
+		return
 	}
+}
 
-	// get the names of all the functions
+Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
+	const text = fs.readFileSync(join(rootPath, path), "utf8")
+	if (logEverything) console.log(join(rootPath, path) + ":\n" + text + "\n")
+
+	const tokens = Modlite_compiler.lex(text)
+	if (logEverything) console.log("tokens:\n" + JSON.stringify(tokens, null) + "\n")
+
+	const build_in = Modlite_compiler.parse({ lineNumber: 1, level: -1, i: 0 }, tokens, false)
+	if (logEverything) console.log("build:\n" + JSON.stringify(build_in, null) + "\n")
+
+	let level = -1
+	let lineNumber = 0
+
+	files[path] = [{}]
+
 	for (let index = 0; index < build_in.length; index++) {
 		const thing = build_in[index];
-		if (thing.lineNumber) map.lineNumber = thing.lineNumber
+		if (thing.lineNumber) lineNumber = thing.lineNumber
 
 		if (thing.type == "function") {
-			if (map.functions[thing.name]) err(`function ${thing.name} already exists`)
+			if (files[path][0][thing.name]) err(`function ${thing.name} already exists`)
 		
-			map.functions[thing.name] = {}
+			files[path][0][thing.name] = {
+
+			}
 		} else if (thing.type == "import") {
-			console.log("import", thing)
+			if (thing.path.endsWith(".modlite")) {
+				err("not yet supported")
+				// if (files[path][0][thing.path]) {
+
+				// } else {
+				// 	// await Modlite_compiler.getAssembly(rootPath, thing.path, map, assembly)
+				// }
+				const text = fs.readFileSync(join(rootPath, thing.path), "utf8")
+			} if (thing.path.endsWith(".json")) {
+				const jsonString = fs.readFileSync(join(rootPath, thing.path), "utf8")
+
+				const json = JSON.parse(jsonString)
+
+				for (let i = 0; i < thing.imports.length; i++) {
+					const importName = thing.imports[i];
+					
+					if (!json[importName]) err(`import ${importName} not found`)
+
+					if (files[path][0][importName]) err (`Import with name ${importName} failed. Because a function named ${importName} already exists.`)
+
+					files[path][0][importName] = json[importName]
+					files[path][0][importName].isExposedFunction = true
+				}
+			} else {
+				err("not a valid file extension")
+			}
 		} else {
 			err("not a function or import at top level")
 		}
@@ -656,8 +673,8 @@ Modlite_compiler.getAssembly = (build_in) => {
 
 	function assemblyLoop(build, expectValues) {
 		if (!expectValues) {
-			map.level++
-			if (!map.variables[map.level]) map.variables[map.level] = {}
+			level++
+			if (!files[path][level]) files[path][level] = {}
 		}
 
 		//
@@ -666,21 +683,21 @@ Modlite_compiler.getAssembly = (build_in) => {
 
 		for (let index = 0; index < build.length; index++) {
 			const thing = build[index];
-			if (thing.lineNumber) map.lineNumber = thing.lineNumber
+			if (thing.lineNumber) lineNumber = thing.lineNumber
 	
 			if (thing.type == "function") {
-				if (map.level != 0) err("functions can only be defined at top level")
-				map.functions[thing.name].args = thing.args
-				map.functions[thing.name].return = thing.return
+				if (level != 0) err("functions can only be defined at top level")
+				files[path][0][thing.name].args = thing.args
+				files[path][0][thing.name].return = thing.return
 			} else if (thing.type == "definition") {
-				map.variables[map.level][thing.name] = {
+				files[path][level][thing.name] = {
 					type: thing.variableType,
-					index: Object.keys(map.variables[map.level]).length+1,
+					index: Object.keys(files[path][level]).length+1,
 				}
 			}
 		}
 
-		if (!expectValues && map.level != 0) {
+		if (!expectValues && level != 0) {
 			pushToAssembly(["addRegisters", getRegisterRequirement()])
 		}
 		
@@ -690,14 +707,14 @@ Modlite_compiler.getAssembly = (build_in) => {
 
 		for (let index = 0; index < build.length; index++) {
 			const thing = build[index];
-			if (thing.lineNumber) map.lineNumber = thing.lineNumber
+			if (thing.lineNumber) lineNumber = thing.lineNumber
 			
 			if (thing.type == "function") {
-				map.variables[map.level+1] = {}
+				files[path][level+1] = {}
 
 				for (let i = 0; i < thing.args.length; i++) {
 					const arg = thing.args[i];
-					map.variables[map.level+1][arg.name] = {
+					files[path][level+1][arg.name] = {
 						type: arg.type,
 						index: i-2,
 					}
@@ -705,46 +722,67 @@ Modlite_compiler.getAssembly = (build_in) => {
 
 				pushToAssembly([`@${thing.name}`])
 				assemblyLoop(thing.value, false)
-				if (map.functions[thing.name].args.length > 0) pushToAssembly(["pop", map.functions[thing.name].args.length])
+				if (files[path][0][thing.name].args.length > 0) pushToAssembly(["pop", files[path][0][thing.name].args.length])
 				pushToAssembly(["jump"])
-			} else if (thing.type == "string" || thing.type == "number") {
-				if (!expectValues) err(`unexpected ${thing.type}`)
-				pushToAssembly(["push", thing.value])
-			} else if (thing.type == "bool") {
-				if (!expectValues) err(`unexpected ${thing.type}`)
-				pushToAssembly(["push", thing.value == true ? "1" : "0"])
-			} else if (thing.type == "var") {
+			}
+			
+			else if (thing.type == "string" || thing.type == "number") {
 				if (!expectValues) err(`unexpected ${thing.type}`)
 
-				const variable = map.variables[map.level][thing.value]
+				pushToAssembly(["push", "#" + thing.value])
+			}
+			
+			else if (thing.type == "bool") {
+				if (!expectValues) err(`unexpected ${thing.type}`)
+
+				pushToAssembly(["push", "#" + thing.value == true ? "1" : "0"])
+			}
+			
+			else if (thing.type == "var") {
+				if (!expectValues) err(`unexpected ${thing.type}`)
+
+				const variable = files[path][level][thing.value]
 
 				if (!variable) err("variable " + thing.value + " does not exist")
 
 				pushToAssembly(["get", variable.index])
-			} else if (thing.type == "assignment") {
-				const variable = map.variables[map.level][thing.left.value]
+			}
+			
+			else if (thing.type == "assignment") {
+				const variable = files[path][level][thing.left.value]
 				if (!variable) err(`variable ${thing.left.value} does not exist`)
 				pushToAssembly(["push", thing.right.value])
 				pushToAssembly(["set", variable.index])
-			} else if (thing.type == "call") {
-				// if (!map.functions[thing.name]) err("not a known function")
+			}
+			
+			else if (thing.type == "call") {
+				if (!files[path][0][thing.name]) err("unknown variable name " + thing.name)
 
-				// if (functions[thing.name].args.length > thing.value.length) err("not enough arguments")
-				// if (functions[thing.name].args.length < thing.value.length) err("too many arguments")
-				// pushToAssembly(["push", "location_of_next_jump"])
-				// assemblyLoop(thing.value, true)
-				// pushToAssembly(["push", "*" + thing.name])
-				// pushToAssembly(["jump"])
+				if (files[path][0][thing.name].args.length > thing.value.length) err("not enough arguments")
+				if (files[path][0][thing.name].args.length < thing.value.length) err("too many arguments")
+
+				if (files[path][0][thing.name].isExposedFunction) {
+					assemblyLoop(thing.value, true)
+					pushToAssembly(["push", "#" + thing.name])
+					pushToAssembly(["externalJump"])
+				} else {
+					const jump_id = assembly.length
+					pushToAssembly(["push", "*" + jump_id])
+					assemblyLoop(thing.value, true)
+					pushToAssembly(["push", "*" + thing.name])
+					pushToAssembly(["jump"])
+					pushToAssembly(["@" + jump_id])
+				}
 			}
 		}
 
 		if (!expectValues) {
-			if (map.level != 0) {
+			if (level != 0) {
 				pushToAssembly(["removeRegisters", getRegisterRequirement()])
 			}
 
-			delete map.variables[map.level]
-			map.level--
+			delete files[path][level]
+			level--
 		}
 	}
 
@@ -754,8 +792,8 @@ Modlite_compiler.getAssembly = (build_in) => {
 
 	function getRegisterRequirement() {
 		let count = 0
-		for (const key in map.variables[map.level]) {
-			if (map.variables[map.level][key].index > 0) {
+		for (const key in files[path][level]) {
+			if (files[path][level][key].index > 0) {
 				count++
 			}
 		}
@@ -764,13 +802,9 @@ Modlite_compiler.getAssembly = (build_in) => {
 	}
 
 	function err(msg) {
-		Modlite_compiler.handle_error(msg, map.lineNumber, map.level)
+		Modlite_compiler.handle_error(msg, lineNumber, level)
 		throw "[getAssembly error]";
 	}
 }
 
-const path = process.argv[2]
-
-if (!path) throw "no path specified (npm run go ${path})"
-
-Modlite_compiler.compileCode(path)
+Modlite_compiler.compileCode(rootPath)

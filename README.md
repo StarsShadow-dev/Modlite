@@ -1,5 +1,7 @@
 # Modlite
 
+**I am in the process of moving everything to node (a lot of things do not work right now)**
+
 A work in progress programming language.
 
 Currently compiles to a custom operation code and can run in JavaScript.
@@ -26,7 +28,7 @@ This function is named `main` and takes no arguments ( `()` ) and returns nothin
 
 # RunTime
 
-The RunTime is designed to be very simple and fast to run.
+The RunTime is designed to be very fast and simple to run.
 
 ## JavaScript
 
