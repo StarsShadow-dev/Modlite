@@ -590,6 +590,9 @@ Modlite_compiler.compileCode = (rootPath) => {
 	if (logEverything) console.log("conf: ", conf)
 
 	if (!conf.entry) throw "no entry in conf"
+	if (!conf.entry.endsWith(".modlite")) throw "entry must end with .modlite"
+
+	if (!conf.saveTo) throw "no saveTo in conf"
 
 	try {
 		let files = {}
@@ -602,6 +605,12 @@ Modlite_compiler.compileCode = (rootPath) => {
 
 		const opCode = Modlite_compiler.assemblyToOperationCode(assembly)
 		if (logEverything) console.log("opCode:\n" + opCode + "\n")
+
+		// save the opCode to a file in the rootPath
+		fs.writeFile(join(rootPath, conf.saveTo), opCode, function (err) {
+			if (err) throw err
+			console.log("saved to " + join(rootPath, conf.saveTo))
+		});
 	} catch (error) {
 		if (error != "[lexar error]" && error != "[parser error]" && error != "[getAssembly error]") throw error
 		return
@@ -799,11 +808,11 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 		}
 	}
 
-	function setVariable(name, value) {
-		for (let i = 0; i < variables.length; i++) {
-			if (variables[i][name]) variables[i][name] = value
-		}
-	}
+	// function setVariable(name, value) {
+	// 	for (let i = 0; i < variables.length; i++) {
+	// 		if (variables[i][name]) variables[i][name] = value
+	// 	}
+	// }
 
 	function pushToAssembly(data) {
 		assembly.push(...data, "\n")

@@ -1,3 +1,4 @@
 {
-	"entry": "main.modlite"
+	"entry": "main.modlite",
+	"saveTo": "program.cmodlite"
 }
