@@ -1,0 +1,14 @@
+{
+  "name": "modlite",
+  "version": "13.0.0",
+  "description": "A work in progress programming language.",
+  "type": "module",
+  "scripts": {
+    "go": "node ./modliteCompiler.js"
+  },
+  "author": "StarsShadow-dev",
+  "bugs": {
+    "url": "https://github.com/StarsShadow-dev/Modlite/issues"
+  },
+  "homepage": "https://github.com/StarsShadow-dev/Modlite"
+}

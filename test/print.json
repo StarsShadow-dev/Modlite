@@ -1,0 +1,11 @@
+{
+	"print": {
+		"args": [
+			{
+				"name": "message",
+				"type": "string"
+			}
+		],
+		"return": "void"
+	}
+}

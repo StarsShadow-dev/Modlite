@@ -1,0 +1,7 @@
+import {
+	print
+} from "print.json"
+
+function main() void {
+	print("in main")
+}

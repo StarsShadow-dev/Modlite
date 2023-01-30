@@ -1,13 +1,16 @@
-// Modlite Rewrite 12
+// Modlite Rewrite 13
 
 /* 
 	A work in progress programming language.
 	Currently compiles to a custom operation code and can run in JavaScript.
+
+	npm run go ./test
+	npm run go ./test true
 */
 
 // Modlite building environment
 const Modlite_compiler = {
-	version: "12.1.0",
+	version: "13.0.0",
 	string: "",
 	devlog: true,
 
@@ -43,7 +46,7 @@ const Modlite_compiler = {
 		// Jumping
 		//
 	
-		// jump to a location (takes a single character off the stack. The place to jump into is determined by this characters charCode)
+		// jump to a location(takes a single character off the stack. The place to jump into is determined by this characters charCode)
 		jump: "g",
 		// jump but only if a condition is true (does not do anything right now)
 		conditionalJump: "h",
@@ -76,7 +79,7 @@ Modlite_compiler.lex = (stringin) => {
 		const char = next_char()
 
 		// if the character exists and it is not a space or a line break
-		if (char && !char.match(/[ \n]/)) read_next(char)
+		if (char && !char.match(/[ \t\n]/)) read_next(char)
 	}
 
 	function read_next(char) {
@@ -409,10 +412,18 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 				value: next_token().value,
 			})
 		} else if (token.value == "!") {
-			push_to_build({
-				type: "assert",
-				value: next_token().value,
-			})
+			const next = next_token()
+			if (next.type == "punctuation" && next.value == "(") {
+				push_to_build({
+					type: "assert",
+					value: next_token().value,
+				})
+			} else {
+				push_to_build({
+					type: "assert",
+					value: next.value,
+				})
+			}
 		}
 	}
 
@@ -477,13 +488,27 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 	}
 
 	function parse_import() {
-		const name = next_token()
+		next_token()
+		const parse = Modlite_compiler.parse(context, tokens, false)
 
-		if (name.type != "string") err("expected string")
+		const from = next_token()
+		if (from.type != "word") err("expected the word 'from'")
+		if (from.value != "from") err("expected the word 'from'")
+
+		const string = next_token()
+		if (string.type != "string") err("expected string")
+
+		let imports = []
+		for (let index = 0; index < parse.length; index++) {
+			const thing = parse[index];
+			if (thing.type != "var") err("only words are allowed inside of an import statement")
+			imports.push(thing.value)
+		}
 
 		push_to_build({
 			type: "import",
-			name: name.value,
+			imports: imports,
+			path: string.value,
 		})
 	}
 
@@ -494,258 +519,6 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 
 	context.level--
 	return build
-}
-
-Modlite_compiler.generateBinary = (build_in, humanReadable) => {
-	let binary = "abcd"
-	// list of function calls
-	let callLocations = {}
-	// list of functions
-	let functions = {}
-	let checkSim = {
-		level: -1,
-		map: [[]],
-		variables: [{}],
-		lineNumber: 0,
-	}
-
-	// get the names of all the functions
-	for (let index = 0; index < build_in.length; index++) {
-		const thing = build_in[index];
-		if (thing.lineNumber) checkSim.lineNumber = thing.lineNumber
-
-		if (thing.type == "function") {
-			if (callLocations[thing.name]) err(`function ${thing.name} already exists`)
-		
-			callLocations[thing.name] = []
-			functions[thing.name] = {}
-		} else if (thing.type == "import") {
-			console.log("import", thing.name)
-		} else {
-			err("not a function or import at top level")
-		}
-	}
-
-	getBinary(build_in, false)
-
-	// make sure the main function exists
-	if (functions.main == undefined) {
-		// Modlite_compiler.handle_error always expects a line number
-		checkSim.lineNumber = 1
-		err("no main function")
-	}
-
-	if (humanReadable) {
-		let temp = binary.split("")
-		temp[0] = undefined; temp[1] = undefined; temp[2] = undefined; temp[3] = undefined;
-		binary = temp.join("")
-		binary = "jump_to_main\n" + binary
-	} else {
-		// replace the "abcd" with a jump to the main function
-		let temp = binary.split("")
-		temp[0] = Modlite_compiler.binaryCodes.push
-		temp[1] = getCharacter(String(functions.main.location))
-		temp[2] = Modlite_compiler.binaryCodes.break
-		temp[3] = Modlite_compiler.binaryCodes.jump
-		binary = temp.join("")
-	}
-
-	for (const key in callLocations) {
-		for (let index = 0; index < callLocations[key].length; index++) {
-			const charPosition = callLocations[key][index];
-			
-			let temp = binary.split("")
-			temp[charPosition] = getCharacter(String(functions[key].location))
-			binary = temp.join("")
-		}
-	}
-
-	return binary
-
-	function getBinary(build, expectValues) {
-		if (!expectValues) {
-			checkSim.level++
-			if (!checkSim.variables[checkSim.level]) checkSim.variables[checkSim.level] = {}
-		}
-
-		//
-		// pre loop
-		//
-
-		for (let index = 0; index < build.length; index++) {
-			const thing = build[index];
-			if (thing.lineNumber) checkSim.lineNumber = thing.lineNumber
-
-			if (thing.type == "function") {
-				if (checkSim.level != 0) err("functions can only be defined at top level")
-				functions[thing.name].args = thing.args
-				functions[thing.name].return = thing.return
-			} else if (thing.type == "definition") {
-				checkSim.variables[checkSim.level][thing.name] = {
-					type: thing.variableType,
-					index: Object.keys(checkSim.variables[checkSim.level]).length+1,
-				}
-			}
-		}
-
-		if (!expectValues && checkSim.level != 0) {
-			if (humanReadable) {
-				pushToBinary("addRegisters: " + getRegisterRequirement())
-			} else {
-				pushToBinary(Modlite_compiler.binaryCodes.addRegisters + getRegisterRequirement() + Modlite_compiler.binaryCodes.break)
-			}
-		}
-
-		//
-		// main loop
-		//
-
-		for (let index = 0; index < build.length; index++) {
-			const thing = build[index];
-			if (thing.lineNumber) checkSim.lineNumber = thing.lineNumber
-
-			if (thing.type == "function") {
-				functions[thing.name].location = binary.length
-
-				checkSim.variables[checkSim.level+1] = {}
-
-				for (let i = 0; i < thing.args.length; i++) {
-					const arg = thing.args[i];
-					checkSim.variables[checkSim.level+1][arg.name] = {
-						type: arg.type,
-						index: i-2,
-					}
-				}
-
-				if (humanReadable) {
-					pushToBinary("\n" + thing.name + ":")
-					getBinary(thing.value, false)
-					if (functions[thing.name].args.length > 0) pushToBinary("pop: " + functions[thing.name].args.length)
-					pushToBinary("jump")
-				}
-				else {
-					getBinary(thing.value, false)
-					if (functions[thing.name].args.length > 0) pushToBinary(Modlite_compiler.binaryCodes.pop + functions[thing.name].args.length + Modlite_compiler.binaryCodes.break)
-					pushToBinary(Modlite_compiler.binaryCodes.jump)
-				}
-
-			} else if (thing.type == "string" || thing.type == "number") {
-				if (!expectValues) err(`unexpected ${thing.type}`)
-				if (humanReadable)
-				pushToBinary(`push ${thing.type}: ` + thing.value)
-				else
-				pushToBinary(Modlite_compiler.binaryCodes.push + thing.value + Modlite_compiler.binaryCodes.break)
-			} else if (thing.type == "bool") {
-				if (!expectValues) err(`unexpected ${thing.type}`)
-				if (humanReadable)
-				pushToBinary("push bool: " + thing.value)
-				else
-				pushToBinary(Modlite_compiler.binaryCodes.push + (thing.value == true ? "1" : "0") + Modlite_compiler.binaryCodes.break)
-			} else if (thing.type == "var") {
-				if (!expectValues) err(`unexpected ${thing.type}`)
-
-				const variable = checkSim.variables[checkSim.level][thing.value]
-
-				if (!variable) err("variable " + thing.value + " does not exist")
-
-				if (humanReadable) {
-					pushToBinary("get: " + variable.index)
-				}
-				else {
-					pushToBinary(Modlite_compiler.binaryCodes.get + variable.index + Modlite_compiler.binaryCodes.break)
-				}
-			} else if (thing.type == "assignment") {
-				const variable = checkSim.variables[checkSim.level][thing.left.value]
-				if (!variable) err(`variable ${thing.left.value} does not exist`)
-				if (humanReadable) {
-					pushToBinary("push: " + thing.right.value)
-					pushToBinary("set: " + variable.index)
-				}
-				else {
-					pushToBinary(Modlite_compiler.binaryCodes.push + thing.right.value + Modlite_compiler.binaryCodes.break)
-					pushToBinary(Modlite_compiler.binaryCodes.set + variable.index + Modlite_compiler.binaryCodes.break)
-				}
-			} else if (thing.type == "call") {
-				if (callLocations[thing.name]) {
-					if (functions[thing.name].args.length > thing.value.length) err("not enough arguments")
-					if (functions[thing.name].args.length < thing.value.length) err("too many arguments")
-					if (humanReadable) {
-						pushToBinary("push location to return to")
-						getBinary(thing.value, true)
-						pushToBinary("push location to go to")
-						pushToBinary("jump")
-					}
-					else {
-						const returnToCharLocation = binary.length + 1
-						pushToBinary(Modlite_compiler.binaryCodes.push + "*" + Modlite_compiler.binaryCodes.break)
-						getBinary(thing.value, true)
-
-						callLocations[thing.name].push(binary.length + 1)
-
-						pushToBinary(Modlite_compiler.binaryCodes.push + "*" + Modlite_compiler.binaryCodes.break)
-						pushToBinary(Modlite_compiler.binaryCodes.jump)
-
-						let temp = binary.split("")
-						temp[returnToCharLocation] = getCharacter(String(binary.length))
-						binary = temp.join("")
-					}
-				} else {
-					if (humanReadable) {
-						getBinary(thing.value, true)
-						pushToBinary("push string: " + thing.name)
-						pushToBinary("externalJump")
-					}
-					else {
-						getBinary(thing.value, true)
-						pushToBinary(Modlite_compiler.binaryCodes.push + thing.name + Modlite_compiler.binaryCodes.break + Modlite_compiler.binaryCodes.externalJump)
-					}
-				}
-			}
-		}
-
-		if (!expectValues) {
-			if (checkSim.level != 0) {
-				if (humanReadable) {
-					pushToBinary("removeRegisters: " + getRegisterRequirement())
-				} else {
-					pushToBinary(Modlite_compiler.binaryCodes.removeRegisters + getRegisterRequirement() + Modlite_compiler.binaryCodes.break)
-				}
-			}
-
-			delete checkSim.variables[checkSim.level]
-			checkSim.level--
-		}
-	}
-
-	function getRegisterRequirement() {
-		let count = 0
-		for (const key in checkSim.variables[checkSim.level]) {
-			if (checkSim.variables[checkSim.level][key].index > 0) {
-				count++
-			}
-		}
-
-		return count
-	}
-
-	function getCharacter(string) {
-		return string.split(' ').map(char => String.fromCharCode(parseInt(char, 10))).join('');
-	}
-
-	function pushToBinary(string) {
-		if (humanReadable) {
-			binary += string + "\n"
-		} else {
-			binary += string
-		}
-	}
-
-	function err(msg) {
-		Modlite_compiler.handle_error(msg, checkSim.lineNumber, checkSim.level)
-		throw "[check error]";
-	}
-	
-	// return binary.map(char => Modlite_compiler.binaryCodes(char)).join('');
 }
 
 Modlite_compiler.handle_error = (error, lineNumber, level) => {
@@ -789,30 +562,215 @@ Modlite_compiler.handle_error = (error, lineNumber, level) => {
     }
 }
 
-function parseCode(string) {
-	let parse
-	if (Modlite_compiler.devlog) console.time("parse Modlite")
-	try {
-		parse = Modlite_compiler.parse({ lineNumber: 1, level: -1, i: 0 }, Modlite_compiler.lex(string), false)
-	} catch(err) {
-		if (err != "[lexar error]" && err != "[parser error]") console.error(err)
-		if (Modlite_compiler.devlog) console.timeEnd("parse Modlite")
-		return
+Modlite_compiler.assemblyToOperationCode = (assembly) => {
+	let OpCode = "abcd"
+	return OpCode
+
+	function getCharacter(string) {
+		return string.split(' ').map(char => String.fromCharCode(parseInt(char, 10))).join('');
 	}
-	if (Modlite_compiler.devlog) console.timeEnd("parse Modlite")
-	return parse
 }
 
-function compileCode(string, humanReadable) {
-	let binary
-	if (Modlite_compiler.devlog) console.time("compile Modlite")
-	try {
-		binary = Modlite_compiler.generateBinary(Modlite_compiler.parse({ lineNumber: 1, level: -1, i: 0 }, Modlite_compiler.lex(string), false), humanReadable)
-	} catch(err) {
-		if (err != "[lexar error]" && err != "[parser error]" && err != "[check error]") console.error(err)
-		if (Modlite_compiler.devlog) console.timeEnd("compile Modlite")
-		return
-	}
-	if (Modlite_compiler.devlog) console.timeEnd("compile Modlite")
-	return binary
+// --------
+
+import fs from "fs"
+import { join } from "path"
+
+const logEverything = process.argv[3] == "true"
+
+Modlite_compiler.compileCode = (path) => {
+	console.log("path: ", path)
+
+	fs.readFile(join(path, "conf.json"), "utf8", (err, jsonString) => {
+		if (err) throw err
+
+		const conf = JSON.parse(jsonString)
+
+		if (logEverything) console.log("conf: ", conf)
+
+		if (!conf.entry) throw "no entry in conf"
+
+		Modlite_compiler.compileFile(join(path, conf.entry))
+	})
 }
+
+Modlite_compiler.compileFile = (path) => {
+	fs.readFile(path, "utf8", (err, text) => {
+		if (err) throw err
+
+		try {
+			if (logEverything) console.log(path + ":\n" + text + "\n")
+
+			const tokens = Modlite_compiler.lex(text)
+			if (logEverything) console.log("tokens:\n" + JSON.stringify(tokens, null, 2) + "\n")
+
+			const build = Modlite_compiler.parse({ lineNumber: 1, level: -1, i: 0 }, tokens, false)
+			if (logEverything) console.log("build:\n" + JSON.stringify(build, null, 2) + "\n")
+
+			const assembly = Modlite_compiler.getAssembly(build)
+			if (logEverything) console.log("assembly:\n " + assembly.join(" ") + "\n")
+
+			const opCode = Modlite_compiler.assemblyToOperationCode(assembly)
+			if (logEverything) console.log("opCode:\n" + opCode + "\n")
+		} catch (error) {
+			if (error != "[lexar error]" && error != "[parser error]" && error != "[getAssembly error]") throw error
+			return
+		}
+	})
+}
+
+Modlite_compiler.getAssembly = (build_in) => {
+	let assembly = []
+
+	pushToAssembly(["push", "*main"])
+	pushToAssembly(["jump"])
+
+	let map = {
+		level: -1,
+		variables: [{}],
+		lineNumber: 0,
+
+		// list of functions
+		functions: {},
+	}
+
+	// get the names of all the functions
+	for (let index = 0; index < build_in.length; index++) {
+		const thing = build_in[index];
+		if (thing.lineNumber) map.lineNumber = thing.lineNumber
+
+		if (thing.type == "function") {
+			if (map.functions[thing.name]) err(`function ${thing.name} already exists`)
+		
+			map.functions[thing.name] = {}
+		} else if (thing.type == "import") {
+			console.log("import", thing)
+		} else {
+			err("not a function or import at top level")
+		}
+	}
+
+	assemblyLoop(build_in, false)
+
+	return assembly
+
+	function assemblyLoop(build, expectValues) {
+		if (!expectValues) {
+			map.level++
+			if (!map.variables[map.level]) map.variables[map.level] = {}
+		}
+
+		//
+		// pre loop
+		//
+
+		for (let index = 0; index < build.length; index++) {
+			const thing = build[index];
+			if (thing.lineNumber) map.lineNumber = thing.lineNumber
+	
+			if (thing.type == "function") {
+				if (map.level != 0) err("functions can only be defined at top level")
+				map.functions[thing.name].args = thing.args
+				map.functions[thing.name].return = thing.return
+			} else if (thing.type == "definition") {
+				map.variables[map.level][thing.name] = {
+					type: thing.variableType,
+					index: Object.keys(map.variables[map.level]).length+1,
+				}
+			}
+		}
+
+		if (!expectValues && map.level != 0) {
+			pushToAssembly(["addRegisters", getRegisterRequirement()])
+		}
+		
+		//
+		// main loop
+		//
+
+		for (let index = 0; index < build.length; index++) {
+			const thing = build[index];
+			if (thing.lineNumber) map.lineNumber = thing.lineNumber
+			
+			if (thing.type == "function") {
+				map.variables[map.level+1] = {}
+
+				for (let i = 0; i < thing.args.length; i++) {
+					const arg = thing.args[i];
+					map.variables[map.level+1][arg.name] = {
+						type: arg.type,
+						index: i-2,
+					}
+				}
+
+				pushToAssembly([`@${thing.name}`])
+				assemblyLoop(thing.value, false)
+				if (map.functions[thing.name].args.length > 0) pushToAssembly(["pop", map.functions[thing.name].args.length])
+				pushToAssembly(["jump"])
+			} else if (thing.type == "string" || thing.type == "number") {
+				if (!expectValues) err(`unexpected ${thing.type}`)
+				pushToAssembly(["push", thing.value])
+			} else if (thing.type == "bool") {
+				if (!expectValues) err(`unexpected ${thing.type}`)
+				pushToAssembly(["push", thing.value == true ? "1" : "0"])
+			} else if (thing.type == "var") {
+				if (!expectValues) err(`unexpected ${thing.type}`)
+
+				const variable = map.variables[map.level][thing.value]
+
+				if (!variable) err("variable " + thing.value + " does not exist")
+
+				pushToAssembly(["get", variable.index])
+			} else if (thing.type == "assignment") {
+				const variable = map.variables[map.level][thing.left.value]
+				if (!variable) err(`variable ${thing.left.value} does not exist`)
+				pushToAssembly(["push", thing.right.value])
+				pushToAssembly(["set", variable.index])
+			} else if (thing.type == "call") {
+				// if (!map.functions[thing.name]) err("not a known function")
+
+				// if (functions[thing.name].args.length > thing.value.length) err("not enough arguments")
+				// if (functions[thing.name].args.length < thing.value.length) err("too many arguments")
+				// pushToAssembly(["push", "location_of_next_jump"])
+				// assemblyLoop(thing.value, true)
+				// pushToAssembly(["push", "*" + thing.name])
+				// pushToAssembly(["jump"])
+			}
+		}
+
+		if (!expectValues) {
+			if (map.level != 0) {
+				pushToAssembly(["removeRegisters", getRegisterRequirement()])
+			}
+
+			delete map.variables[map.level]
+			map.level--
+		}
+	}
+
+	function pushToAssembly(data) {
+		assembly.push(...data, "\n")
+	}
+
+	function getRegisterRequirement() {
+		let count = 0
+		for (const key in map.variables[map.level]) {
+			if (map.variables[map.level][key].index > 0) {
+				count++
+			}
+		}
+
+		return count
+	}
+
+	function err(msg) {
+		Modlite_compiler.handle_error(msg, map.lineNumber, map.level)
+		throw "[getAssembly error]";
+	}
+}
+
+const path = process.argv[2]
+
+if (!path) throw "no path specified (npm run go ${path})"
+
+Modlite_compiler.compileCode(path)
