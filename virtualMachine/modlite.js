@@ -59,7 +59,7 @@ class ModliteRunTime {
 			// uncomment this to watch the stack change while running
 			// for (const key in binaryCodes) {
 			// 	if (binaryCodes[key] == char) {
-			// 		console.log(i, key, this.stack.join(", "))
+			// 		console.log(i, key, "stack:", JSON.stringify(this.stack))
 			// 		break
 			// 	}
 			// }

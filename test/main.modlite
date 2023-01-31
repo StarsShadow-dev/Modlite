@@ -3,5 +3,11 @@ import { test } from "ImportTest.modlite"
 
 public function main() void {
 	print("in main")
+
+	Afunction()
 	test()
+}
+
+function Afunction() void {
+	print("in Afunction in main.modlite")
 }
