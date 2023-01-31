@@ -668,13 +668,11 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 				if (variables[0][thing.name]) err(`function ${thing.name} already exists`)
 		
 				variables[0][thing.name] = {
+					ID: path + " " + thing.name,
 					args: thing.args,
 					return: thing.return,
 				}
-				files[path][thing.name] = {
-					args: thing.args,
-					return: thing.return,
-				}
+				files[path][thing.name] = variables[0][thing.name]
 			} else if (thing.type == "import") {
 				if (thing.path.endsWith(".modlite")) {
 					if (!files[thing.path]) {
@@ -729,6 +727,8 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 			if (thing.lineNumber) lineNumber = thing.lineNumber
 			
 			if (thing.type == "function") {
+				const variable = getVariable(thing.name)
+				console.log("variable", variable)
 				variables[level+1] = {}
 
 				for (let i = 0; i < thing.args.length; i++) {
@@ -738,7 +738,7 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 					}
 				}
 
-				pushToAssembly([`@${thing.name}`])
+				pushToAssembly([`@${getVariable(thing.name).ID}`])
 				assemblyLoop(thing.value, false)
 				if (variables[0][thing.name].args.length > 0) pushToAssembly(["pop", variables[0][thing.name].args.length])
 				pushToAssembly(["jump"])
@@ -791,7 +791,7 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 					const jump_id = assembly.length
 					pushToAssembly(["push", "*" + jump_id])
 					assemblyLoop(thing.value, true)
-					pushToAssembly(["push", "*" + thing.name])
+					pushToAssembly(["push", "*" + variable.ID])
 					pushToAssembly(["jump"])
 					pushToAssembly(["@" + jump_id])
 				}
