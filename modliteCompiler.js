@@ -568,8 +568,67 @@ Modlite_compiler.handle_error = (error, lineNumber, level) => {
 }
 
 Modlite_compiler.assemblyToOperationCode = (assembly) => {
-	let OpCode = "abcd"
-	return OpCode
+	let index = 0
+	let opCode = ""
+	let locations = {}
+	while (index < assembly.length) {
+		const instruction = assembly[index];
+		
+		if (instruction.startsWith("@")) {
+			if (!locations[instruction.slice(1, instruction.length)]) locations[instruction.slice(1, instruction.length)] = {
+				position: 0,
+				references: []
+			}
+			locations[instruction.slice(1, instruction.length)].position = opCode.length + 2
+		} else if (instruction == "push") {
+			opCode += Modlite_compiler.binaryCodes.push + getNextInstruction() + Modlite_compiler.binaryCodes.break
+		} else if (instruction == "jump") {
+			opCode += Modlite_compiler.binaryCodes.jump
+		} else if (instruction == "externalJump") {
+			opCode += Modlite_compiler.binaryCodes.externalJump
+		} else if (instruction == "addRegisters") {
+			opCode += Modlite_compiler.binaryCodes.addRegisters + getNextInstruction() + Modlite_compiler.binaryCodes.break
+		} else if (instruction == "removeRegisters") {
+			opCode += Modlite_compiler.binaryCodes.removeRegisters + getNextInstruction() + Modlite_compiler.binaryCodes.break
+		} else if (instruction == "\n") {
+
+		} else {
+			throw "unknown assembly instruction " + instruction
+		}
+
+		index++
+	}
+
+	if (logEverything) console.log("locations", JSON.stringify(locations, null, 2))
+
+	let temp = opCode.split("")
+
+	for (const key in locations) {
+		const location = locations[key]
+
+		for (let i = 0; i < location.references.length; i++) {
+			const reference = location.references[i]
+			temp[reference] = getCharacter(String(location.position))
+		}
+	}
+
+	return temp.join("")
+
+	function getNextInstruction() {
+		index++
+		const instruction = assembly[index]
+
+		if (instruction.startsWith("*")) {
+			if (!locations[instruction.slice(1, instruction.length)]) locations[instruction.slice(1, instruction.length)] = {
+				position: 0,
+				references: []
+			}
+			locations[instruction.slice(1, instruction.length)].references.push(opCode.length + 1)
+			return "*"
+		}
+
+		return instruction
+	}
 
 	function getCharacter(string) {
 		return string.split(' ').map(char => String.fromCharCode(parseInt(char, 10))).join('');
@@ -602,7 +661,7 @@ Modlite_compiler.compileCode = (rootPath) => {
 	try {
 		let files = {}
 		let assembly = [
-			"push", "*main", "\n",
+			"push", "*" + conf.entry + " main", "\n",
 			"jump", "\n"
 		]
 		Modlite_compiler.getAssembly(rootPath, conf.entry, files, assembly)
@@ -683,7 +742,7 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 	
 						if (!files[thing.path][importName]) err(`import ${importName} from modlite file ${thing.path} not found`)
 
-						if (variables[0][importName]) err (`Import with name ${importName} failed. Because a variable named ${importName} already exists.`)
+						if (variables[0][importName]) err(`Import with name ${importName} failed. Because a variable named ${importName} already exists.`)
 	
 						variables[0][importName] = files[thing.path][importName]
 					}
@@ -698,7 +757,7 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 						
 						if (!json[importName]) err(`import ${importName} from json file ${thing.path} not found`)
 	
-						if (variables[0][importName]) err (`Import with name ${importName} failed. Because a variable named ${importName} already exists.`)
+						if (variables[0][importName]) err(`Import with name ${importName} failed. Because a variable named ${importName} already exists.`)
 	
 						variables[0][importName] = json[importName]
 						variables[0][importName].isExposedFunction = true
@@ -715,7 +774,7 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 		}
 
 		if (!expectValues && level != 0) {
-			pushToAssembly(["addRegisters", getRegisterRequirement()])
+			pushToAssembly(["addRegisters", String(getRegisterRequirement())])
 		}
 		
 		//
@@ -728,7 +787,6 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 			
 			if (thing.type == "function") {
 				const variable = getVariable(thing.name)
-				console.log("variable", variable)
 				variables[level+1] = {}
 
 				for (let i = 0; i < thing.args.length; i++) {
@@ -747,13 +805,13 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 			else if (thing.type == "string" || thing.type == "number") {
 				if (!expectValues) err(`unexpected ${thing.type}`)
 
-				pushToAssembly(["push", "#" + thing.value])
+				pushToAssembly(["push", thing.value])
 			}
 			
 			else if (thing.type == "bool") {
 				if (!expectValues) err(`unexpected ${thing.type}`)
 
-				pushToAssembly(["push", "#" + thing.value == true ? "1" : "0"])
+				pushToAssembly(["push", thing.value == true ? "1" : "0"])
 			}
 			
 			// get a variable `print(a)`
@@ -785,7 +843,7 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 
 				if (variable.isExposedFunction) {
 					assemblyLoop(thing.value, true)
-					pushToAssembly(["push", "#" + thing.name])
+					pushToAssembly(["push", thing.name])
 					pushToAssembly(["externalJump"])
 				} else {
 					const jump_id = assembly.length
@@ -800,7 +858,7 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 
 		if (!expectValues) {
 			if (level != 0) {
-				pushToAssembly(["removeRegisters", getRegisterRequirement()])
+				pushToAssembly(["removeRegisters", String(getRegisterRequirement())])
 			}
 
 			delete variables[level]
