@@ -4,8 +4,8 @@
 	A work in progress programming language.
 	Currently compiles to a custom operation code and can run in JavaScript.
 
-	node modliteCompiler.js ./test
-	node modliteCompiler.js ./test true
+	node modliteCompiler.js ./tests/return
+	node modliteCompiler.js ./tests/return true
 */
 
 // Modlite building environment
@@ -582,6 +582,8 @@ Modlite_compiler.assemblyToOperationCode = (assembly) => {
 			locations[instruction.slice(1, instruction.length)].position = opCode.length
 		} else if (instruction == "push") {
 			opCode += Modlite_compiler.binaryCodes.push + getNextInstruction() + Modlite_compiler.binaryCodes.break
+		} else if (instruction == "pop") {
+			opCode += Modlite_compiler.binaryCodes.pop + getNextInstruction() + Modlite_compiler.binaryCodes.break
 		} else if (instruction == "jump") {
 			opCode += Modlite_compiler.binaryCodes.jump
 		} else if (instruction == "externalJump") {
@@ -852,6 +854,11 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 					pushToAssembly(["push", "*" + variable.ID])
 					pushToAssembly(["jump"])
 					pushToAssembly(["@" + jump_id])
+				}
+
+				// if the function returns something pop the return value off because it is not being used
+				if (variable.return != "void" && !expectValues) {
+					pushToAssembly(["pop", "1"])
 				}
 			}
 		}

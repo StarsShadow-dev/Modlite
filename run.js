@@ -1,7 +1,7 @@
 import fs from "fs"
 import ModliteRunTime from "./virtualMachine/modlite.js"
 
-// node run.js test/program.cmodlite
+// node run.js tests/return/program.cmodlite
 
 const path = process.argv[2]
 
@@ -11,6 +11,10 @@ const runTime = new ModliteRunTime()
 
 runTime.exposedFunctions.print = () => {
 	console.log("[print]", runTime.stack.pop())
+}
+
+runTime.exposedFunctions.getString = () => {
+	runTime.stack.push("a string")
 }
 
 const opCode = fs.readFileSync(path, "utf8")

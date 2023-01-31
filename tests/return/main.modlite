@@ -1,0 +1,7 @@
+import { print getString } from "../print.json"
+
+public function main() void {
+	print("testing")
+	print(getString())
+	getString()
+}
