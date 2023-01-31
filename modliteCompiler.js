@@ -10,7 +10,7 @@
 
 // Modlite building environment
 const Modlite_compiler = {
-	version: "13.0.0",
+	version: "13.1.0",
 	string: "",
 	devlog: true,
 
@@ -329,8 +329,12 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 			push_to_build({
 				type: "null",
 			})
+		} else if (token.value == "public") {
+			const next = next_token()
+			if (next.type != "word" || next.value != "function") err("unexpected 'public' keyword")
+			parse_function(next, true)
 		} else if (token.value == "function") {
-			parse_function(token)
+			parse_function(token, false)
 		} else if (token.value == "var") {
 			parse_var()
 		} else if (token.value == "import") {
@@ -427,7 +431,7 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 		}
 	}
 
-	function parse_function(token) {
+	function parse_function(token, isPublic) {
 
 		const name = next_token()
 
@@ -460,6 +464,7 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 
 		push_to_build({
 			type: "function",
+			public: isPublic,
 			name: name.value,
 			args: args,
 			return: Return.value,
@@ -587,7 +592,7 @@ Modlite_compiler.compileCode = (rootPath) => {
 
 	const conf = JSON.parse(jsonString)
 
-	if (logEverything) console.log("conf: ", conf)
+	if (logEverything) console.log(`conf: ${JSON.stringify(conf, null, 2)}\n`)
 
 	if (!conf.entry) throw "no entry in conf"
 	if (!conf.entry.endsWith(".modlite")) throw "entry must end with .modlite"
@@ -619,7 +624,7 @@ Modlite_compiler.compileCode = (rootPath) => {
 
 Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 	const text = fs.readFileSync(join(rootPath, path), "utf8")
-	if (logEverything) console.log(join(rootPath, path) + ":\n" + text + "\n")
+	if (logEverything) console.log(`------- ${join(rootPath, path)} -------\n${text}\n`)
 
 	const tokens = Modlite_compiler.lex(text)
 	if (logEverything) console.log("tokens:\n" + JSON.stringify(tokens, null) + "\n")
@@ -637,46 +642,7 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 		const thing = build_in[index];
 		if (thing.lineNumber) lineNumber = thing.lineNumber
 
-		if (thing.type == "function") {
-			if (variables[0][thing.name]) err(`function ${thing.name} already exists`)
-		
-			variables[0][thing.name] = {
-
-			}
-		} else if (thing.type == "import") {
-			if (thing.path.endsWith(".modlite")) {
-				if (!files[thing.path]) {
-					Modlite_compiler.getAssembly(rootPath, thing.path, files, assembly)
-				}
-				for (let i = 0; i < thing.imports.length; i++) {
-					const importName = thing.imports[i];
-
-					if (!files[thing.path][importName]) err(`import ${importName} from modlite file ${thing.path} not found`)
-
-					variables[importName] = files[path][thing.path]
-				}
-				const text = fs.readFileSync(join(rootPath, thing.path), "utf8")
-			} if (thing.path.endsWith(".json")) {
-				const jsonString = fs.readFileSync(join(rootPath, thing.path), "utf8")
-
-				const json = JSON.parse(jsonString)
-
-				for (let i = 0; i < thing.imports.length; i++) {
-					const importName = thing.imports[i];
-					
-					if (!json[importName]) err(`import ${importName} from json file ${thing.path} not found`)
-
-					if (variables[0][importName]) err (`Import with name ${importName} failed. Because a function named ${importName} already exists.`)
-
-					variables[0][importName] = json[importName]
-					variables[0][importName].isExposedFunction = true
-				}
-			} else {
-				err("not a valid file extension")
-			}
-		} else {
-			err("not a function or import at top level")
-		}
+		if (thing.type != "function" && thing.type != "import") err("not a function or import at top level")
 	}
 
 	assemblyLoop(build_in, false)
@@ -699,8 +665,49 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 	
 			if (thing.type == "function") {
 				if (level != 0) err("functions can only be defined at top level")
-				variables[0][thing.name].args = thing.args
-				variables[0][thing.name].return = thing.return
+				if (variables[0][thing.name]) err(`function ${thing.name} already exists`)
+		
+				variables[0][thing.name] = {
+					args: thing.args,
+					return: thing.return,
+				}
+				files[path][thing.name] = {
+					args: thing.args,
+					return: thing.return,
+				}
+			} else if (thing.type == "import") {
+				if (thing.path.endsWith(".modlite")) {
+					if (!files[thing.path]) {
+						Modlite_compiler.getAssembly(rootPath, thing.path, files, assembly)
+					}
+					for (let i = 0; i < thing.imports.length; i++) {
+						const importName = thing.imports[i];
+	
+						if (!files[thing.path][importName]) err(`import ${importName} from modlite file ${thing.path} not found`)
+
+						if (variables[0][importName]) err (`Import with name ${importName} failed. Because a variable named ${importName} already exists.`)
+	
+						variables[0][importName] = files[thing.path][importName]
+					}
+					const text = fs.readFileSync(join(rootPath, thing.path), "utf8")
+				} else if (thing.path.endsWith(".json")) {
+					const jsonString = fs.readFileSync(join(rootPath, thing.path), "utf8")
+	
+					const json = JSON.parse(jsonString)
+	
+					for (let i = 0; i < thing.imports.length; i++) {
+						const importName = thing.imports[i];
+						
+						if (!json[importName]) err(`import ${importName} from json file ${thing.path} not found`)
+	
+						if (variables[0][importName]) err (`Import with name ${importName} failed. Because a variable named ${importName} already exists.`)
+	
+						variables[0][importName] = json[importName]
+						variables[0][importName].isExposedFunction = true
+					}
+				} else {
+					err(`${thing.path} is not a valid file extension`)
+				}
 			} else if (thing.type == "definition") {
 				variables[level][thing.name] = {
 					type: thing.variableType,
@@ -728,7 +735,6 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 					const arg = thing.args[i];
 					variables[level+1][arg.name] = {
 						type: arg.type,
-						index: i-2,
 					}
 				}
 
