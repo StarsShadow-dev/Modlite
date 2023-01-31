@@ -579,7 +579,7 @@ Modlite_compiler.assemblyToOperationCode = (assembly) => {
 				position: 0,
 				references: []
 			}
-			locations[instruction.slice(1, instruction.length)].position = opCode.length + 2
+			locations[instruction.slice(1, instruction.length)].position = opCode.length + 3
 		} else if (instruction == "push") {
 			opCode += Modlite_compiler.binaryCodes.push + getNextInstruction() + Modlite_compiler.binaryCodes.break
 		} else if (instruction == "jump") {

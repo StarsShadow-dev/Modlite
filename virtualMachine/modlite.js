@@ -157,4 +157,4 @@ function charToBaseTen(char) {
 }
 
 // uncomment this when using node
-// export default ModliteRunTime
+export default ModliteRunTime
