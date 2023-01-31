@@ -642,7 +642,7 @@ import { join } from "path"
 
 const rootPath = process.argv[2]
 
-if (!rootPath) throw "no path specified (npm run go ${path})"
+if (!rootPath) throw "no path specified"
 
 const logEverything = process.argv[3] == "true"
 
