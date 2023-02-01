@@ -6,6 +6,25 @@ function main() void {
 }
 
 function onInput(line:string) void {
-	print("received an input:")
-	print(line)
+	if (line == "") {
+		print("nothing")
+	}
+	if (line == "ping") {
+		print("pong")
+	}
+	if (line == "no cats") {
+		print("amount of cats = 0")
+	}
+	if (line == "cat") {
+		print("amount of cats = 1")
+	}
+	if (line == "cats") {
+		print("amount of cats > 1")
+	}
+	if (line == "hi") {
+		print("hello")
+	}
+	if (line == "hello") {
+		print("hi")
+	}
 }
