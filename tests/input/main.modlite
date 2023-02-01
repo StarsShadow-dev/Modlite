@@ -27,4 +27,15 @@ function onInput(line:string) void {
 	if (line == "hello") {
 		print("hi")
 	}
+	/*switch {
+		(line == "hi") {
+
+		}
+		(line == "hello") {
+
+		}
+		(true) {
+
+		}
+	}*/
 }

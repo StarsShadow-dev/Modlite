@@ -532,7 +532,7 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 
 		const elseWord = next_token()
 
-		if (elseWord.type = "word" && elseWord.value == "else") {
+		if (elseWord.type == "word" && elseWord.value == "else") {
 			next_token()
 			const falseStatement = Modlite_compiler.parse(context, tokens, false)
 			push_to_build({
@@ -932,7 +932,7 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 				assemblyLoop(thing.condition, false, true)
 				pushToAssembly(["push", "*" + jump_id])
 				pushToAssembly(["notConditionalJump"])
-				assemblyLoop(thing.statement, false, false)
+				assemblyLoop(thing.trueStatement, false, false)
 				pushToAssembly(["@" + jump_id])
 			}
 
