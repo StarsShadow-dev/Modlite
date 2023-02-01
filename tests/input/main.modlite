@@ -6,16 +6,45 @@ function main() void {
 }
 
 function onInput(line:string) void {
+	// a switch statement evaluates case conditions from top to bottom until a condition is true
+	// then runs the contents of that case
+	// (once the case is run the switch statement is over and no more cases can be run)
 	switch {
-		case (line == "hi") {
-			print("hello")
-		}
-		case (line == "hello") {
-			print("hi")
-		}
+		// uncomment this case to make all inputs print "try again later"
+		/*case (true) {
+			print("try again later")
+		}*/
 		case (line == "test") {
-			print("testing")
+			print("testing stuff")
 		}
+		case (line == "box") {
+			print("/-----\\")
+			print("|     |")
+			print("|     |")
+			print("\\-----/")
+		}
+		case (line == "big box") {
+			print("/----------\\")
+			print("|          |")
+			print("|          |")
+			print("|          |")
+			print("\\----------/")
+		}
+		case (line == "long") {
+			print("long")
+			print("loong")
+			print("looong")
+			print("loooong")
+			print("looooong")
+			print("loooooong")
+			print("looooooong")
+			print("loooooooong")
+			print("looooooooong")
+			print("loooooooooong")
+			print("")
+			print("Is that long enough for you?")
+		}
+		// this case is run when none of the other conditions are true
 		case (true) {
 			print("unknown input")
 		}
