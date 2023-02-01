@@ -190,7 +190,12 @@ Modlite_compiler.lex = (stringin) => {
 					return past
 				}
 				if (char == "\\") {
-					escaped = true
+					if (escaped == true) {
+						past += char
+						escaped = false
+					} else {
+						escaped = true
+					}
 				} else {
 					if (!escaped && char == openingChar) {
 						back_char()
