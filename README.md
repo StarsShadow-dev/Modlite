@@ -1,7 +1,5 @@
 # Modlite
 
-**I am in the process of moving everything to node (a lot of things do not work right now)**
-
 A work in progress programming language.
 
 Currently compiles to a custom operation code and can run in JavaScript.
@@ -46,7 +44,8 @@ runTime.exposedFunctions[function_name] = () => {
 
 To run an opCode:
 ```JavaScript
-runTime.run(opCode)
+runTime.binary = opCode
+runTime.run()
 ```
 
 ## Swift _(unfinished)_

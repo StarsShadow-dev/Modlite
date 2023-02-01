@@ -2,7 +2,7 @@
 	RunTime version 3
 
 	For JavaScript.
-	Can running a web browser and should be able to run in node.
+	Can run or node.
 */
 
 const binaryCodes = {
@@ -54,7 +54,6 @@ class ModliteRunTime {
 		this.index = 0
 		this.binary = ""
 		this.stack = []
-		this.binary
 		this.arp = 0
 	}
 	run = () => {

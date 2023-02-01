@@ -6,5 +6,6 @@ function main() void {
 }
 
 function onInput(line:string) void {
+	print("received an input:")
 	print(line)
 }

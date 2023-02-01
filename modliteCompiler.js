@@ -838,7 +838,6 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 				if (variable.type == "function") {
 					pushToAssembly(["push", "*" + variable.ID])
 				} else {
-					console.log("variable", variable)
 					pushToAssembly(["get", String(variable.index)])
 				}
 			}

@@ -12,7 +12,7 @@ const runTime = new ModliteRunTime()
 
 runTime.exposedFunctions.print = () => {
 	console.log("[print]", runTime.stack.pop())
-	if (rl) rl.prompt();
+	// if (rl) rl.prompt();
 }
 
 var rl = undefined
