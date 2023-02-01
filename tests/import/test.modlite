@@ -1,0 +1,6 @@
+import { print } from "../print.json"
+
+public function test() void {
+	print("in test")
+	print("testing")
+}
