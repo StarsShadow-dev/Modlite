@@ -46,7 +46,7 @@ const Modlite_compiler = {
 		// Jumping
 		//
 	
-		// jump to a location(takes a single character off the stack. The place to jump into is determined by this characters charCode)
+		// jump to a location (takes a single character off the stack. The place to jump into is determined by this characters charCode)
 		jump: "g",
 		// jump but only if a condition is true (does not do anything right now)
 		conditionalJump: "h",
@@ -62,6 +62,8 @@ const Modlite_compiler = {
 		// multiply: "l",
 		// divide: "o",
 		
+		// check to see if two values are equivalent
+		equivalent: "z",
 		// break character
 		break: "\uFFFF",
 	},
@@ -339,6 +341,8 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 			parse_var()
 		} else if (token.value == "import") {
 			parse_import()
+		} else if (token.value == "if") {
+			parse_if()
 		} else {
 			push_to_build({
 				type: "var",
@@ -376,21 +380,22 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 				right: Modlite_compiler.parse(context, tokens, true)[0],
 			})
 		} else if (token.value == "=") {
-			// if (build[build.length-1] && build[build.length-1].type == "var" && build[build.length-1].value == "var") {
-			// 	build.pop()
-			// 	push_to_build({
-			// 		type: "definition",
-			// 		left: prior,
-			// 		right: Modlite_compiler.parse(context, tokens, true)[0],
-			// 	})
-			// } else {
-				
-			// }
-			push_to_build({
-				type: "assignment",
-				left: prior,
-				right: Modlite_compiler.parse(context, tokens, true)[0],
-			})
+			const next = next_token()
+			if (next.type == "operator" && next.value == "=") {
+				push_to_build({
+					type: "equivalent",
+					left: [prior],
+					right: [Modlite_compiler.parse(context, tokens, true)[0]],
+				})
+			} else {
+				// undo the next_token()
+				back_token()
+				push_to_build({
+					type: "assignment",
+					left: [prior],
+					right: [Modlite_compiler.parse(context, tokens, true)[0]],
+				})
+			}
 		}
 	}
 
@@ -485,12 +490,12 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 		})
 	}
 
-	function parse_return() {
-		push_to_build({
-			type: "return",
-			value: next_token(),
-		})
-	}
+	// function parse_return() {
+	// 	push_to_build({
+	// 		type: "return",
+	// 		value: next_token(),
+	// 	})
+	// }
 
 	function parse_import() {
 		next_token()
@@ -515,6 +520,11 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 			imports: imports,
 			path: string.value,
 		})
+	}
+
+	function parse_if() {
+		next_token()
+		const parse = Modlite_compiler.parse(context, tokens, false)
 	}
 
 	function err(msg) {
@@ -584,10 +594,6 @@ Modlite_compiler.assemblyToOperationCode = (assembly) => {
 			opCode += Modlite_compiler.binaryCodes.push + getNextInstruction() + Modlite_compiler.binaryCodes.break
 		} else if (instruction == "pop") {
 			opCode += Modlite_compiler.binaryCodes.pop + getNextInstruction() + Modlite_compiler.binaryCodes.break
-		} else if (instruction == "jump") {
-			opCode += Modlite_compiler.binaryCodes.jump
-		} else if (instruction == "externalJump") {
-			opCode += Modlite_compiler.binaryCodes.externalJump
 		} else if (instruction == "addRegisters") {
 			opCode += Modlite_compiler.binaryCodes.addRegisters + getNextInstruction() + Modlite_compiler.binaryCodes.break
 		} else if (instruction == "removeRegisters") {
@@ -596,6 +602,14 @@ Modlite_compiler.assemblyToOperationCode = (assembly) => {
 			opCode += Modlite_compiler.binaryCodes.set + getNextInstruction() + Modlite_compiler.binaryCodes.break
 		} else if (instruction == "get") {
 			opCode += Modlite_compiler.binaryCodes.get + getNextInstruction() + Modlite_compiler.binaryCodes.break
+		} else if (instruction == "jump") {
+			opCode += Modlite_compiler.binaryCodes.jump
+		} else if (instruction == "conditionalJump") {
+			opCode += Modlite_compiler.binaryCodes.conditionalJump
+		} else if (instruction == "externalJump") {
+			opCode += Modlite_compiler.binaryCodes.externalJump
+		} else if (instruction == "equivalent") {
+			opCode += Modlite_compiler.binaryCodes.equivalent
 		} else if (instruction == "\n") {
 
 		} else {
@@ -822,8 +836,9 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 			}
 
 			else if (thing.type == "definition") {
-				variables[0][thing.name] = {
+				variables[level][thing.name] = {
 					type: thing.variableType,
+					index: getRegisterRequirement(),
 				}
 			}
 			
@@ -843,10 +858,10 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 			}
 			
 			else if (thing.type == "assignment") {
-				const variable = getVariable(thing.left.value)
-				if (!variable) err(`variable ${thing.left.value} does not exist`)
+				const variable = getVariable(thing.left[0].value)
+				if (!variable) err(`variable ${thing.left[0].value} does not exist`)
 
-				pushToAssembly(["push", thing.right.value])
+				assemblyLoop(thing.right, true)
 				pushToAssembly(["set", String(variable.index)])
 			}
 			
@@ -877,6 +892,12 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 				if (variable.return != "void" && !expectValues) {
 					pushToAssembly(["pop", "1"])
 				}
+			}
+
+			else if (thing.type == "equivalent") {
+				assemblyLoop(thing.left, true)
+				assemblyLoop(thing.right, true)
+				pushToAssembly(["equivalent"])
 			}
 		}
 

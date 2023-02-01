@@ -1,5 +1,5 @@
 /*
-	RunTime version 3
+	RunTime version 4
 
 	For JavaScript.
 	Can run a web browser or node.
@@ -40,6 +40,8 @@ const binaryCodes = {
 	// multiply: "l",
 	// divide: "o",
 	
+	// check to see if two values are equivalent
+	equivalent: "z",
 	// break character
 	break: "\uFFFF",
 }
@@ -133,18 +135,27 @@ class ModliteRunTime {
 			}
 			
 			else if (char == binaryCodes.conditionalJump) {
-				// const location = Number(goToBreak())
-				// const condition = this.stack.pop()
-				// console.log("conditionalJump", location, condition)
-				// if (condition == "1") {
-				// 	this.index = location
-				// }
+				const condition = this.stack.pop()
+				const location = charToBaseTen(this.stack.pop())
+				console.log("conditionalJump", location, condition)
+				if (condition == "1") {
+					this.index = location
+				}
 			}
 			
 			else if (char == binaryCodes.externalJump) {
 				const name = this.stack.pop()
 				// console.log("externalJump", name)
 				this.exposedFunctions[name]()
+			}
+
+			else if (char == binaryCodes.equivalent) {
+				const value2 = this.stack.pop()
+				const value1 = this.stack.pop()
+
+				// console.log("equivalent", value1, value2)
+
+				this.stack.push(value1 == value2 ? "1" : "0")
 			}
 			
 			else {
