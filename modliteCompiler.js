@@ -767,7 +767,6 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 						if (variables[0][importName]) err(`Import with name ${importName} failed. Because a variable named ${importName} already exists.`)
 	
 						variables[0][importName] = json[importName]
-						variables[0][importName].isExposedFunction = true
 					}
 				} else {
 					err(`${thing.path} is not a valid file extension`)
@@ -800,12 +799,13 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 					const arg = thing.args[i];
 					variables[level+1][arg.name] = {
 						type: arg.type,
+						index: -1-i,
 					}
 				}
 
 				pushToAssembly([`@${getVariable(thing.name).ID}`])
 				assemblyLoop(thing.value, false)
-				if (variables[0][thing.name].args.length > 0) pushToAssembly(["pop", variables[0][thing.name].args.length])
+				if (variables[0][thing.name].args.length > 0) pushToAssembly(["pop", String(variables[0][thing.name].args.length)])
 				pushToAssembly(["jump"])
 			}
 			
@@ -835,7 +835,12 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 				const variable = getVariable(thing.value)
 				if (!variable) err("variable " + thing.value + " does not exist")
 
-				pushToAssembly(["get", String(variable.index)])
+				if (variable.type == "function") {
+					pushToAssembly(["push", "*" + variable.ID])
+				} else {
+					console.log("variable", variable)
+					pushToAssembly(["get", String(variable.index)])
+				}
 			}
 			
 			else if (thing.type == "assignment") {
@@ -851,12 +856,12 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 
 				if (!variable) err(`variable ${thing.name} does not exist`)
 
-				if (variable.type != "function") err(`variable ${thing.name} is not a function`)
+				if (variable.type != "function" && variable.type != "exposedFunction") err(`variable ${thing.name} is not a function`)
 
 				if (variable.args.length > thing.value.length) err(`not enough arguments for ${thing.name} requires ${variable.args.length}`)
 				if (variable.args.length < thing.value.length) err(`too many arguments for ${thing.name} requires ${variable.args.length}`)
 
-				if (variable.isExposedFunction) {
+				if (variable.type == "exposedFunction") {
 					assemblyLoop(thing.value, true)
 					pushToAssembly(["push", thing.name])
 					pushToAssembly(["externalJump"])

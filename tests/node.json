@@ -1,10 +1,20 @@
 {
 	"print": {
-		"type": "function",
+		"type": "exposedFunction",
 		"args": [
 			{
 				"name": "message",
 				"type": "string"
+			}
+		],
+		"return": "void"
+	},
+	"createInput": {
+		"type": "exposedFunction",
+		"args": [
+			{
+				"name": "onInput",
+				"type": "function"
 			}
 		],
 		"return": "void"

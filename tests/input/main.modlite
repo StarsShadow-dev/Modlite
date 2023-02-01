@@ -1,0 +1,10 @@
+import { print createInput } from "../node.json"
+
+function main() void {
+	print("in main")
+	createInput(onInput)
+}
+
+function onInput(line:string) void {
+	print(line)
+}

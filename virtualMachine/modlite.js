@@ -1,5 +1,5 @@
 /*
-	RunTime version 2
+	RunTime version 3
 
 	For JavaScript.
 	Can running a web browser and should be able to run in node.
@@ -46,20 +46,37 @@ const binaryCodes = {
 
 class ModliteRunTime {
 	exposedFunctions = {}
+	index = 0
+	binary = ""
 	stack = []
 	arp = 0 // activation record pointer
 	reset = () => {
+		this.index = 0
+		this.binary = ""
 		this.stack = []
+		this.binary
+		this.arp = 0
 	}
-	run = (binary) => {
-		let i = 0;
-		while (i < binary.length) {
-			const char = binary[i];
+	run = () => {
+		const goToBreak = () => {
+			let past = ""
+			while (true) {
+				const char = this.binary[++this.index];
+				if (!char || char == "\uFFFF") {
+					return past
+				} else {
+					past += char
+				}
+			}
+		}
+
+		while (this.index < this.binary.length) {
+			const char = this.binary[this.index];
 
 			// uncomment this to watch the stack change while running
 			// for (const key in binaryCodes) {
 			// 	if (binaryCodes[key] == char) {
-			// 		console.log(i, key, "stack:", JSON.stringify(this.stack))
+			// 		console.log(this.index, key, "stack:", JSON.stringify(this.stack))
 			// 		break
 			// 	}
 			// }
@@ -81,7 +98,7 @@ class ModliteRunTime {
 				this.arp = this.stack.length-1
 				const amount = Number(goToBreak())
 				// console.log("addRegisters", amount)
-				for (let index = 0; index < amount; index++) {
+				for (let i = 0; i < amount; i++) {
 					this.stack.push(undefined)
 				}
 				
@@ -112,7 +129,7 @@ class ModliteRunTime {
 				if (this.stack.length == 0) break
 				const location = charToBaseTen(this.stack.pop())
 				// console.log("jump", location)
-				i = location
+				this.index = location
 				continue
 			}
 			
@@ -121,7 +138,7 @@ class ModliteRunTime {
 				// const condition = this.stack.pop()
 				// console.log("conditionalJump", location, condition)
 				// if (condition == "1") {
-				// 	i = location
+				// 	this.index = location
 				// }
 			}
 			
@@ -132,22 +149,10 @@ class ModliteRunTime {
 			}
 			
 			else {
-				throw "unexpected character: " + char + " at " + i
+				throw "unexpected character: " + char + " at " + this.index
 			}
 
-			i++
-		}
-	
-		function goToBreak() {
-			let past = ""
-			while (true) {
-				const char = binary[++i];
-				if (!char || char == "\uFFFF") {
-					return past
-				} else {
-					past += char
-				}
-			}
+			this.index++
 		}
 	}
 }
