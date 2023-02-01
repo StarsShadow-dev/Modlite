@@ -729,6 +729,7 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 				if (variables[0][thing.name]) err(`function ${thing.name} already exists`)
 		
 				variables[0][thing.name] = {
+					type: "function",
 					ID: path + " " + thing.name,
 					args: thing.args,
 					return: thing.return,
@@ -839,6 +840,8 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 				const variable = getVariable(thing.name)
 
 				if (!variable) err("unknown variable name " + thing.name)
+
+				if (variable.type != "function") err(`variable ${thing.name} is not a function`)
 
 				if (variable.args.length > thing.value.length) err(`not enough arguments for ${thing.name} requires ${variable.args.length}`)
 				if (variable.args.length < thing.value.length) err(`too many arguments for ${thing.name} requires ${variable.args.length}`)

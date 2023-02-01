@@ -1,5 +1,6 @@
 {
 	"print": {
+		"type": "function",
 		"args": [
 			{
 				"name": "message",
