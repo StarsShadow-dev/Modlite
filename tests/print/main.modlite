@@ -1,5 +1,7 @@
 import { print } from "../node.json"
 
 function main() void {
-	print("Hello, World")
+	var msg string
+	msg = "Hello, World"
+	print(msg)
 }

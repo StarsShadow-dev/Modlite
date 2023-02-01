@@ -592,6 +592,10 @@ Modlite_compiler.assemblyToOperationCode = (assembly) => {
 			opCode += Modlite_compiler.binaryCodes.addRegisters + getNextInstruction() + Modlite_compiler.binaryCodes.break
 		} else if (instruction == "removeRegisters") {
 			opCode += Modlite_compiler.binaryCodes.removeRegisters + getNextInstruction() + Modlite_compiler.binaryCodes.break
+		} else if (instruction == "set") {
+			opCode += Modlite_compiler.binaryCodes.set + getNextInstruction() + Modlite_compiler.binaryCodes.break
+		} else if (instruction == "get") {
+			opCode += Modlite_compiler.binaryCodes.get + getNextInstruction() + Modlite_compiler.binaryCodes.break
 		} else if (instruction == "\n") {
 
 		} else {
@@ -816,6 +820,12 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 
 				pushToAssembly(["push", thing.value == true ? "1" : "0"])
 			}
+
+			else if (thing.type == "definition") {
+				variables[0][thing.name] = {
+					type: thing.variableType,
+				}
+			}
 			
 			// get a variable `print(a)`
 			//                       ^
@@ -825,7 +835,7 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 				const variable = getVariable(thing.value)
 				if (!variable) err("variable " + thing.value + " does not exist")
 
-				pushToAssembly(["get", variable.index])
+				pushToAssembly(["get", String(variable.index)])
 			}
 			
 			else if (thing.type == "assignment") {
@@ -833,13 +843,13 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 				if (!variable) err(`variable ${thing.left.value} does not exist`)
 
 				pushToAssembly(["push", thing.right.value])
-				pushToAssembly(["set", variable.index])
+				pushToAssembly(["set", String(variable.index)])
 			}
 			
 			else if (thing.type == "call") {
 				const variable = getVariable(thing.name)
 
-				if (!variable) err("unknown variable name " + thing.name)
+				if (!variable) err(`variable ${thing.name} does not exist`)
 
 				if (variable.type != "function") err(`variable ${thing.name} is not a function`)
 
