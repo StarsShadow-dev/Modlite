@@ -2,7 +2,7 @@
 	RunTime version 3
 
 	For JavaScript.
-	Can run or node.
+	Can run a web browser or node.
 */
 
 const binaryCodes = {
