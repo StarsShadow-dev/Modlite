@@ -10,25 +10,25 @@ function onInput(line:string) void {
 	// then runs the contents of that case
 	// (once the case is run the switch statement is over and no more cases can be run)
 	switch {
-		// uncomment this case to make all inputs print "try again later"
+		// uncomment this case to make all inputs print an error message
 		/*case (true) {
-			print("try again later")
+			print("oh, no, the top case evaluated as true and the switch statement is over so no more cases can be run!")
 		}*/
 		case (line == "test") {
 			print("testing stuff")
 		}
 		case (line == "box") {
-			print("/-----\\")
-			print("|     |")
-			print("|     |")
-			print("\\-----/")
+			print("┌─────┐")
+			print("│     │")
+			print("│     │")
+			print("└─────┘")
 		}
 		case (line == "big box") {
-			print("/----------\\")
-			print("|          |")
-			print("|          |")
-			print("|          |")
-			print("\\----------/")
+			print("┌──────────┐")
+			print("│          │")
+			print("│          │")
+			print("│          │")
+			print("└──────────┘")
 		}
 		case (line == "long") {
 			print("long")
