@@ -1,7 +1,5 @@
 import { print } from "../node.json"
-import { test } from "test.modlite"
 
 function main() void {
-	print("in main")
-	test()
+	print("Hello, World")
 }

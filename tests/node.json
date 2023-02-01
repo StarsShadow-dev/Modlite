@@ -7,9 +7,5 @@
 			}
 		],
 		"return": "void"
-	},
-	"getString": {
-		"args": [],
-		"return": "string"
 	}
 }

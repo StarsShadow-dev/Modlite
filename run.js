@@ -13,10 +13,6 @@ runTime.exposedFunctions.print = () => {
 	console.log("[print]", runTime.stack.pop())
 }
 
-runTime.exposedFunctions.getString = () => {
-	runTime.stack.push("a string")
-}
-
 const opCode = fs.readFileSync(path, "utf8")
 
 runTime.run(opCode)
