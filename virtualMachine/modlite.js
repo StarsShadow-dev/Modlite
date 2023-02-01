@@ -1,5 +1,5 @@
 /*
-	RunTime version 4
+	RunTime version 5
 
 	For JavaScript.
 	Can run a web browser or node.
@@ -26,10 +26,12 @@ const binaryCodes = {
 
 	// jump to a location (takes a single character off the stack. The place to jump into is determined by this characters charCode)
 	jump: "g",
-	// jump but only if a condition is true (does not do anything right now)
+	// jump but only if a condition is true
 	conditionalJump: "h",
+	// jump but only if a condition is false
+	notConditionalJump: "i",
 	// jumps to code in the host programming language
-	externalJump: "i",
+	externalJump: "j",
 
 	//
 	// math
@@ -135,11 +137,22 @@ class ModliteRunTime {
 			}
 			
 			else if (char == binaryCodes.conditionalJump) {
-				const condition = this.stack.pop()
 				const location = charToBaseTen(this.stack.pop())
-				console.log("conditionalJump", location, condition)
+				const condition = this.stack.pop()
+				// console.log("conditionalJump", location, condition)
 				if (condition == "1") {
 					this.index = location
+					continue
+				}
+			}
+
+			else if (char == binaryCodes.notConditionalJump) {
+				const location = charToBaseTen(this.stack.pop())
+				const condition = this.stack.pop()
+				// console.log("conditionalJump", location, condition)
+				if (condition == "0") {
+					this.index = location
+					continue
 				}
 			}
 			

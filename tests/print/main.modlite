@@ -3,5 +3,7 @@ import { print } from "../node.json"
 function main() void {
 	var msg string
 	msg = "Hello, World"
-	print(msg)
+	if (msg == "Hello, World") {
+		print(msg)
+	}
 }

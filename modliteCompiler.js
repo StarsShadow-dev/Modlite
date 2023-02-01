@@ -48,10 +48,12 @@ const Modlite_compiler = {
 	
 		// jump to a location (takes a single character off the stack. The place to jump into is determined by this characters charCode)
 		jump: "g",
-		// jump but only if a condition is true (does not do anything right now)
+		// jump but only if a condition is true
 		conditionalJump: "h",
+		// jump but only if a condition is false
+		notConditionalJump: "i",
 		// jumps to code in the host programming language
-		externalJump: "i",
+		externalJump: "j",
 	
 		//
 		// math
@@ -524,7 +526,15 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 
 	function parse_if() {
 		next_token()
-		const parse = Modlite_compiler.parse(context, tokens, false)
+		const condition = Modlite_compiler.parse(context, tokens, false)
+		next_token()
+		const statement = Modlite_compiler.parse(context, tokens, false)
+
+		push_to_build({
+			type: "if",
+			condition: condition,
+			statement: statement,
+		})
 	}
 
 	function err(msg) {
@@ -606,6 +616,8 @@ Modlite_compiler.assemblyToOperationCode = (assembly) => {
 			opCode += Modlite_compiler.binaryCodes.jump
 		} else if (instruction == "conditionalJump") {
 			opCode += Modlite_compiler.binaryCodes.conditionalJump
+		} else if (instruction == "notConditionalJump") {
+			opCode += Modlite_compiler.binaryCodes.notConditionalJump
 		} else if (instruction == "externalJump") {
 			opCode += Modlite_compiler.binaryCodes.externalJump
 		} else if (instruction == "equivalent") {
@@ -619,7 +631,7 @@ Modlite_compiler.assemblyToOperationCode = (assembly) => {
 		index++
 	}
 
-	if (logEverything) console.log("locations", JSON.stringify(locations, null, 2))
+	if (logEverything) console.log("locations", JSON.stringify(locations, null, 2), "\n")
 
 	let temp = opCode.split("")
 
@@ -724,12 +736,12 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 		if (thing.type != "function" && thing.type != "import") err("not a function or import at top level")
 	}
 
-	assemblyLoop(build_in, false)
+	assemblyLoop(build_in, true, false)
 
 	return assembly
 
-	function assemblyLoop(build, expectValues) {
-		if (!expectValues) {
+	function assemblyLoop(build, newScope, expectValues) {
+		if (newScope) {
 			level++
 			if (!variables[level]) variables[level] = {}
 		}
@@ -793,7 +805,7 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 			}
 		}
 
-		if (!expectValues && level != 0) {
+		if (newScope && level != 0) {
 			pushToAssembly(["addRegisters", String(getRegisterRequirement())])
 		}
 		
@@ -818,7 +830,7 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 				}
 
 				pushToAssembly([`@${getVariable(thing.name).ID}`])
-				assemblyLoop(thing.value, false)
+				assemblyLoop(thing.value, true, false)
 				if (variables[0][thing.name].args.length > 0) pushToAssembly(["pop", String(variables[0][thing.name].args.length)])
 				pushToAssembly(["jump"])
 			}
@@ -861,7 +873,7 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 				const variable = getVariable(thing.left[0].value)
 				if (!variable) err(`variable ${thing.left[0].value} does not exist`)
 
-				assemblyLoop(thing.right, true)
+				assemblyLoop(thing.right, false, true)
 				pushToAssembly(["set", String(variable.index)])
 			}
 			
@@ -876,13 +888,13 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 				if (variable.args.length < thing.value.length) err(`too many arguments for ${thing.name} requires ${variable.args.length}`)
 
 				if (variable.type == "exposedFunction") {
-					assemblyLoop(thing.value, true)
+					assemblyLoop(thing.value, false, true)
 					pushToAssembly(["push", thing.name])
 					pushToAssembly(["externalJump"])
 				} else {
 					const jump_id = assembly.length
 					pushToAssembly(["push", "*" + jump_id])
-					assemblyLoop(thing.value, true)
+					assemblyLoop(thing.value, false, true)
 					pushToAssembly(["push", "*" + variable.ID])
 					pushToAssembly(["jump"])
 					pushToAssembly(["@" + jump_id])
@@ -895,13 +907,23 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 			}
 
 			else if (thing.type == "equivalent") {
-				assemblyLoop(thing.left, true)
-				assemblyLoop(thing.right, true)
+				assemblyLoop(thing.left, false, true)
+				assemblyLoop(thing.right, false, true)
 				pushToAssembly(["equivalent"])
+			}
+
+			else if (thing.type == "if") {
+				const jump_id = assembly.length
+
+				assemblyLoop(thing.condition, false, true)
+				pushToAssembly(["push", "*" + jump_id])
+				pushToAssembly(["notConditionalJump"])
+				assemblyLoop(thing.statement, false, false)
+				pushToAssembly(["@" + jump_id])
 			}
 		}
 
-		if (!expectValues) {
+		if (newScope) {
 			if (level != 0) {
 				pushToAssembly(["removeRegisters", String(getRegisterRequirement())])
 			}
