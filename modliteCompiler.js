@@ -528,13 +528,27 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 		next_token()
 		const condition = Modlite_compiler.parse(context, tokens, false)
 		next_token()
-		const statement = Modlite_compiler.parse(context, tokens, false)
+		const trueStatement = Modlite_compiler.parse(context, tokens, false)
 
-		push_to_build({
-			type: "if",
-			condition: condition,
-			statement: statement,
-		})
+		const elseWord = next_token()
+
+		if (elseWord.type = "word" && elseWord.value == "else") {
+			next_token()
+			const falseStatement = Modlite_compiler.parse(context, tokens, false)
+			push_to_build({
+				type: "if_else",
+				condition: condition,
+				trueStatement: trueStatement,
+				falseStatement: falseStatement,
+			})
+		} else {
+			back_token()
+			push_to_build({
+				type: "if",
+				condition: condition,
+				trueStatement: trueStatement,
+			})
+		}
 	}
 
 	function err(msg) {
@@ -920,6 +934,24 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 				pushToAssembly(["notConditionalJump"])
 				assemblyLoop(thing.statement, false, false)
 				pushToAssembly(["@" + jump_id])
+			}
+
+			else if (thing.type == "if_else") {
+				const trueJump_id = assembly.length
+				const endJump_id = assembly.length + 1
+
+				assemblyLoop(thing.condition, false, true)
+				pushToAssembly(["push", "*" + trueJump_id])
+				pushToAssembly(["conditionalJump"])
+
+				assemblyLoop(thing.falseStatement, false, false)
+				pushToAssembly(["push", "*" + endJump_id])
+				pushToAssembly(["jump"])
+
+				pushToAssembly(["@" + trueJump_id])
+				assemblyLoop(thing.trueStatement, false, false)
+
+				pushToAssembly(["@" + endJump_id])
 			}
 		}
 
