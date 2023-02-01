@@ -345,6 +345,8 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 			parse_import()
 		} else if (token.value == "if") {
 			parse_if()
+		} else if (token.value == "switch") {
+			parse_switch()
 		} else {
 			push_to_build({
 				type: "var",
@@ -403,12 +405,27 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 
 	function handle_punctuation(token) {
 		if (token.value == "(") {
-			
-			push_to_build({
-				type: "call",
-				name: build.pop().value,
-				value: Modlite_compiler.parse(context, tokens, false),
-			})
+			const past = build.pop()
+
+			if (!past) err("unexpected (")
+
+			if (past.type == "var" && past.value == "case") {
+				const condition = Modlite_compiler.parse(context, tokens, false)
+				next_token()
+				const statement = Modlite_compiler.parse(context, tokens, false)
+
+				push_to_build({
+					type: "case",
+					condition: condition,
+					statement: statement
+				})
+			} else {
+				push_to_build({
+					type: "call",
+					name: past.value,
+					value: Modlite_compiler.parse(context, tokens, false),
+				})
+			}
 		} else if (token.value == ")") {
 			exit = true
 			return
@@ -551,6 +568,16 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 		}
 	}
 
+	function parse_switch() {
+		next_token()
+		const statements = Modlite_compiler.parse(context, tokens, false)
+
+		push_to_build({
+			type: "switch",
+			statements: statements,
+		})
+	}
+
 	function err(msg) {
 		Modlite_compiler.handle_error(msg, tokens[context.i-1].lineNumber, context.level)
 		throw "[parser error]";
@@ -567,7 +594,7 @@ Modlite_compiler.handle_error = (error, lineNumber, level) => {
     if (lines[lineNumber-4] != undefined) msg += getLineNumber(lineNumber-3) + " | "       + removeSpacesOrTabsAtStart(lines[lineNumber-4]) + "\n"
     if (lines[lineNumber-3] != undefined) msg += getLineNumber(lineNumber-2) + " | "       + removeSpacesOrTabsAtStart(lines[lineNumber-3]) + "\n"
     if (lines[lineNumber-2] != undefined) msg += getLineNumber(lineNumber-1) + " | "       + removeSpacesOrTabsAtStart(lines[lineNumber-2]) + "\n"
-    if (lines[lineNumber-1] != undefined) msg += getLineNumber(lineNumber  ) + " | =->	" + removeSpacesOrTabsAtStart(lines[lineNumber-1]) + "\n"
+    if (lines[lineNumber-1] != undefined) msg += getLineNumber(lineNumber  ) + " | =->    " + removeSpacesOrTabsAtStart(lines[lineNumber-1]) + "\n"
     if (lines[lineNumber  ] != undefined) msg += getLineNumber(lineNumber+1) + " | "       + removeSpacesOrTabsAtStart(lines[lineNumber  ]) + "\n"
     if (lines[lineNumber+1] != undefined) msg += getLineNumber(lineNumber+2) + " | "       + removeSpacesOrTabsAtStart(lines[lineNumber+1]) + "\n"
     if (lines[lineNumber+2] != undefined) msg += getLineNumber(lineNumber+3) + " | "       + removeSpacesOrTabsAtStart(lines[lineNumber+2]) + "\n"
@@ -952,6 +979,37 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 				assemblyLoop(thing.trueStatement, false, false)
 
 				pushToAssembly(["@" + endJump_id])
+			}
+
+			else if (thing.type == "switch") {
+				const endJump_id = "endJump_id" + assembly.length
+
+				for (let index = 0; index < thing.statements.length; index++) {
+					const Case = thing.statements[index];
+					if (Case.lineNumber) lineNumber = Case.lineNumber
+					
+					if (Case.type != "case") err("not a case")
+
+					const overJump_id = "overJump_id" + assembly.length
+
+					assemblyLoop(Case.condition, false, true)
+
+					pushToAssembly(["push", "*" + overJump_id])
+					pushToAssembly(["notConditionalJump"])
+
+					assemblyLoop(Case.statement, false, true)
+
+					pushToAssembly(["push", "*" + endJump_id])
+					pushToAssembly(["jump"])
+
+					pushToAssembly(["@" + overJump_id])
+				}
+
+				pushToAssembly(["@" + endJump_id])
+			}
+
+			else if (thing.type ==  "case") {
+				err("unexpected case")
 			}
 		}
 

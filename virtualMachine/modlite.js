@@ -149,7 +149,7 @@ class ModliteRunTime {
 			else if (char == binaryCodes.notConditionalJump) {
 				const location = charToBaseTen(this.stack.pop())
 				const condition = this.stack.pop()
-				// console.log("conditionalJump", location, condition)
+				// console.log("notConditionalJump", location, condition)
 				if (condition == "0") {
 					this.index = location
 					continue
