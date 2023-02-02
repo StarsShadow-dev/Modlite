@@ -59,10 +59,10 @@ const Modlite_compiler = {
 		// math
 		//
 	
-		// add: "j",
-		// subtract: "k",
-		// multiply: "l",
-		// divide: "o",
+		add: "k",
+		subtract: "l",
+		multiply: "m",
+		divide: "n",
 		
 		// check to see if two values are equivalent
 		equivalent: "z",
@@ -385,8 +385,8 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 			push_to_build({
 				type: "operation",
 				value: token.value,
-				left: prior,
-				right: Modlite_compiler.parse(context, tokens, true)[0],
+				left: [prior],
+				right: [Modlite_compiler.parse(context, tokens, true)[0]],
 			})
 		} else if (token.value == "=") {
 			const next = next_token()
@@ -666,6 +666,14 @@ Modlite_compiler.assemblyToOperationCode = (assembly) => {
 			opCode += Modlite_compiler.binaryCodes.notConditionalJump
 		} else if (instruction == "externalJump") {
 			opCode += Modlite_compiler.binaryCodes.externalJump
+		} else if (instruction == "add") {
+			opCode += Modlite_compiler.binaryCodes.add
+		} else if (instruction == "subtract") {
+			opCode += Modlite_compiler.binaryCodes.subtract
+		} else if (instruction == "multiply") {
+			opCode += Modlite_compiler.binaryCodes.multiply
+		} else if (instruction == "divide") {
+			opCode += Modlite_compiler.binaryCodes.divide
 		} else if (instruction == "equivalent") {
 			opCode += Modlite_compiler.binaryCodes.equivalent
 		} else if (instruction == "\n") {
@@ -884,7 +892,7 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 			else if (thing.type == "string" || thing.type == "number") {
 				if (!expectValues) err(`unexpected ${thing.type}`)
 
-				pushToAssembly(["push", thing.value])
+				pushToAssembly(["push", String(thing.value)])
 			}
 			
 			else if (thing.type == "bool") {
@@ -951,6 +959,23 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 					pushToAssembly(["pop", "1"])
 				}
 			}
+
+			else if (thing.type == "operation") {
+				console.log("operation", thing)
+
+				assemblyLoop(thing.left, false, true)
+				assemblyLoop(thing.right, false, true)
+				if (thing.value == "+") {
+					pushToAssembly(["add"])
+				} else if (thing.value == "-") {
+					pushToAssembly(["subtract"])
+				} else if (thing.value == "*") {
+					pushToAssembly(["multiply"])
+				} else if (thing.value == "/") {
+					pushToAssembly(["divide"])
+				}
+			}
+
 
 			else if (thing.type == "equivalent") {
 				assemblyLoop(thing.left, false, true)

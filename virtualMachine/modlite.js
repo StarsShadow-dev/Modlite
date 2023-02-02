@@ -1,5 +1,5 @@
 /*
-	RunTime version 5
+	RunTime version 6
 
 	For JavaScript.
 	Can run a web browser or node.
@@ -37,10 +37,10 @@ const binaryCodes = {
 	// math
 	//
 
-	// add: "j",
-	// subtract: "k",
-	// multiply: "l",
-	// divide: "o",
+	add: "k",
+	subtract: "l",
+	multiply: "m",
+	divide: "n",
 	
 	// check to see if two values are equivalent
 	equivalent: "z",
@@ -160,6 +160,42 @@ class ModliteRunTime {
 				const name = this.stack.pop()
 				// console.log("externalJump", name)
 				this.exposedFunctions[name]()
+			}
+
+			else if (char == binaryCodes.add) {
+				const number2 = this.stack.pop()
+				const number1 = this.stack.pop()
+
+				// console.log("add", number1, number2)
+
+				this.stack.push(String(Number(number1) + Number(number2)))
+			}
+
+			else if (char == binaryCodes.subtract) {
+				const number2 = this.stack.pop()
+				const number1 = this.stack.pop()
+
+				// console.log("subtract", number1, number2)
+
+				this.stack.push(String(Number(number1) - Number(number2)))
+			}
+
+			else if (char == binaryCodes.multiply) {
+				const number2 = this.stack.pop()
+				const number1 = this.stack.pop()
+
+				// console.log("multiply", number1, number2)
+
+				this.stack.push(String(Number(number1) * Number(number2)))
+			}
+
+			else if (char == binaryCodes.divide) {
+				const number2 = this.stack.pop()
+				const number1 = this.stack.pop()
+
+				// console.log("divide", number1, number2)
+
+				this.stack.push(String(Number(number1) / Number(number2)))
 			}
 
 			else if (char == binaryCodes.equivalent) {

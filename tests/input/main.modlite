@@ -28,6 +28,7 @@ function onInput(line:string) void {
 			print("│          │")
 			print("│          │")
 			print("│          │")
+			print("│          │")
 			print("└──────────┘")
 		}
 		case (line == "long") {
