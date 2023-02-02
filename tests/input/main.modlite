@@ -10,10 +10,6 @@ function onInput(line:string) void {
 	// then runs the contents of that case
 	// (once the case is run the switch statement is over and no more cases can be run)
 	switch {
-		// uncomment this case to make all inputs print an error message
-		/*case (true) {
-			print("oh, no, the top case evaluated as true and the switch statement is over so no more cases can be run!")
-		}*/
 		case (line == "test") {
 			print("testing stuff")
 		}
@@ -45,9 +41,12 @@ function onInput(line:string) void {
 			print("")
 			print("Is that long enough for you?")
 		}
+		case (line == "") {
+			print("empty input")
+		}
 		// this case is run when none of the other conditions are true
 		case (true) {
-			print("unknown input")
+			print("unknown input " .. line)
 		}
 	}
 }

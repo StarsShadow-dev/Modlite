@@ -41,33 +41,37 @@ const Modlite_compiler = {
 		set: "e",
 		// get the value of a register
 		get: "f",
+		// set the value of a global
+		setGlobal: "g",
+		// get the value of a global
+		getGlobal: "h",
 	
 		//
 		// Jumping
 		//
 	
 		// jump to a location (takes a single character off the stack. The place to jump into is determined by this characters charCode)
-		jump: "g",
+		jump: "i",
 		// jump but only if a condition is true
-		conditionalJump: "h",
+		conditionalJump: "j",
 		// jump but only if a condition is false
-		notConditionalJump: "i",
+		notConditionalJump: "k",
 		// jumps to code in the host programming language
-		externalJump: "j",
+		externalJump: "l",
 	
 		//
 		// math
 		//
 	
-		add: "k",
-		subtract: "l",
-		multiply: "m",
-		divide: "n",
+		add: "m",
+		subtract: "n",
+		multiply: "o",
+		divide: "p",
 		
 		// check to see if two values are equivalent
-		equivalent: "o",
+		equivalent: "q",
 		// join to strings
-		join: "p",
+		join: "r",
 		// break character
 		break: "\uFFFF",
 	},
@@ -382,14 +386,14 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 		if (prior == undefined) err(token.value + " without left side")
 
 		if (token.value == "+" || token.value == "-" || token.value == "*" || token.value == "/") {
-			if (prior.type != "number") err(token.value + " left side is not number")
-
 			push_to_build({
 				type: "operation",
 				value: token.value,
 				left: [prior],
 				right: [Modlite_compiler.parse(context, tokens, true)[0]],
 			})
+			// TODO: fix this
+			back_token()
 		} else if (token.value == "=") {
 			const next = next_token()
 			if (next.type == "operator" && next.value == "=") {
@@ -671,6 +675,10 @@ Modlite_compiler.assemblyToOperationCode = (assembly) => {
 			opCode += Modlite_compiler.binaryCodes.set + getNextInstruction() + Modlite_compiler.binaryCodes.break
 		} else if (instruction == "get") {
 			opCode += Modlite_compiler.binaryCodes.get + getNextInstruction() + Modlite_compiler.binaryCodes.break
+		} else if (instruction == "setGlobal") {
+			opCode += Modlite_compiler.binaryCodes.setGlobal + getNextInstruction() + Modlite_compiler.binaryCodes.break
+		} else if (instruction == "getGlobal") {
+			opCode += Modlite_compiler.binaryCodes.getGlobal + getNextInstruction() + Modlite_compiler.binaryCodes.break
 		} else if (instruction == "jump") {
 			opCode += Modlite_compiler.binaryCodes.jump
 		} else if (instruction == "conditionalJump") {
@@ -765,7 +773,7 @@ Modlite_compiler.compileCode = (rootPath) => {
 			"push", "*" + conf.entry + " main", "\n",
 			"jump", "\n"
 		]
-		Modlite_compiler.getAssembly(rootPath, conf.entry, files, assembly)
+		Modlite_compiler.getAssembly(rootPath, conf.entry, files, assembly, true)
 		if (logEverything) console.log("assembly:\n " + assembly.join(" ") + "\n")
 
 		const opCode = Modlite_compiler.assemblyToOperationCode(assembly)
@@ -782,7 +790,7 @@ Modlite_compiler.compileCode = (rootPath) => {
 	}
 }
 
-Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
+Modlite_compiler.getAssembly = (rootPath, path, files, assembly, main) => {
 	const text = fs.readFileSync(join(rootPath, path), "utf8")
 	if (logEverything) console.log(`------- ${join(rootPath, path)} -------\n${text}\n`)
 
@@ -802,7 +810,9 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 		const thing = build_in[index];
 		if (thing.lineNumber) lineNumber = thing.lineNumber
 
-		if (thing.type != "function" && thing.type != "import") err("not a function or import at top level")
+		if (thing.type != "function" && thing.type != "import" && thing.type != "definition") err("not a function or import or definition at top level")
+
+		if (!main && thing.type == "definition") err("global definitions must be in top level of the main file")
 	}
 
 	assemblyLoop(build_in, true, false)
@@ -825,7 +835,7 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 	
 			if (thing.type == "function") {
 				if (level != 0) err("functions can only be defined at top level")
-				if (variables[0][thing.name]) err(`function ${thing.name} already exists`)
+				if (variables[0][thing.name]) err(`variable ${thing.name} already exists`)
 		
 				variables[0][thing.name] = {
 					type: "function",
@@ -837,7 +847,7 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 			} else if (thing.type == "import") {
 				if (thing.path.endsWith(".modlite")) {
 					if (!files[thing.path]) {
-						Modlite_compiler.getAssembly(rootPath, thing.path, files, assembly)
+						Modlite_compiler.getAssembly(rootPath, thing.path, files, assembly, false)
 					}
 					for (let i = 0; i < thing.imports.length; i++) {
 						const importName = thing.imports[i];
@@ -865,11 +875,6 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 					}
 				} else {
 					err(`${thing.path} is not a valid file extension`)
-				}
-			} else if (thing.type == "definition") {
-				variables[level][thing.name] = {
-					type: thing.variableType,
-					index: Object.keys(variables[level]).length+1,
 				}
 			}
 		}
@@ -917,10 +922,35 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 			}
 
 			else if (thing.type == "definition") {
-				variables[level][thing.name] = {
-					type: thing.variableType,
-					index: getRegisterRequirement(),
+				if (level == 0) {
+					variables[level][thing.name] = {
+						type: thing.variableType,
+						index: getGlobalAmount(),
+						global: true,
+						initialized: false,
+					}
+				} else {
+					variables[level][thing.name] = {
+						type: thing.variableType,
+						index: getRegisterRequirement(),
+						global: false,
+						initialized: false,
+					}
 				}
+			}
+
+			else if (thing.type == "assignment") {
+				const variable = getVariable(thing.left[0].value)
+				if (!variable) err(`variable ${thing.left[0].value} does not exist`)
+
+				assemblyLoop(thing.right, false, true)
+				if (variable.global) {
+					pushToAssembly(["setGlobal", String(variable.index)])
+				} else {
+					pushToAssembly(["set", String(variable.index)])
+				}
+
+				variable.initialized = true
 			}
 			
 			// get a variable `print(a)`
@@ -930,26 +960,23 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 
 				const variable = getVariable(thing.value)
 				if (!variable) err("variable " + thing.value + " does not exist")
+				if (variable.initialized == false) err("variable " + thing.value + " not initialized")
 
 				if (variable.type == "function") {
 					pushToAssembly(["push", "*" + variable.ID])
 				} else {
-					pushToAssembly(["get", String(variable.index)])
+					if (variable.global) {
+						pushToAssembly(["getGlobal", String(variable.index)])
+					} else {
+						pushToAssembly(["get", String(variable.index)])
+					}
 				}
-			}
-			
-			else if (thing.type == "assignment") {
-				const variable = getVariable(thing.left[0].value)
-				if (!variable) err(`variable ${thing.left[0].value} does not exist`)
-
-				assemblyLoop(thing.right, false, true)
-				pushToAssembly(["set", String(variable.index)])
 			}
 			
 			else if (thing.type == "call") {
 				const variable = getVariable(thing.name)
 
-				if (!variable) err(`variable ${thing.name} does not exist`)
+				if (!variable) err(`(call) variable ${thing.name} does not exist`)
 
 				if (variable.type != "function" && variable.type != "exposedFunction") err(`variable ${thing.name} is not a function`)
 
@@ -976,8 +1003,6 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 			}
 
 			else if (thing.type == "operation") {
-				console.log("operation", thing)
-
 				assemblyLoop(thing.left, false, true)
 				assemblyLoop(thing.right, false, true)
 				if (thing.value == "+") {
@@ -999,8 +1024,6 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 			}
 
 			else if (thing.type == "join") {
-				console.log("join", thing)
-
 				assemblyLoop(thing.left, false, true)
 				assemblyLoop(thing.right, false, true)
 				pushToAssembly(["join"])
@@ -1096,6 +1119,17 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 		let count = 0
 		for (const key in variables[level]) {
 			if (variables[level][key].index > 0) {
+				count++
+			}
+		}
+
+		return count
+	}
+
+	function getGlobalAmount() {
+		let count = 0
+		for (const key in variables[level]) {
+			if (variables[level][key].global) {
 				count++
 			}
 		}

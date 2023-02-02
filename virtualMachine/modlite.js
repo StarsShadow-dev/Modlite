@@ -1,5 +1,5 @@
 /*
-	RunTime version 7
+	RunTime version 8
 
 	For JavaScript.
 	Can run a web browser or node.
@@ -19,33 +19,37 @@ const binaryCodes = {
 	set: "e",
 	// get the value of a register
 	get: "f",
+	// set the value of a global
+	setGlobal: "g",
+	// get the value of a global
+	getGlobal: "h",
 
 	//
 	// Jumping
 	//
 
 	// jump to a location (takes a single character off the stack. The place to jump into is determined by this characters charCode)
-	jump: "g",
+	jump: "i",
 	// jump but only if a condition is true
-	conditionalJump: "h",
+	conditionalJump: "j",
 	// jump but only if a condition is false
-	notConditionalJump: "i",
+	notConditionalJump: "k",
 	// jumps to code in the host programming language
-	externalJump: "j",
+	externalJump: "l",
 
 	//
 	// math
 	//
 
-	add: "k",
-	subtract: "l",
-	multiply: "m",
-	divide: "n",
+	add: "m",
+	subtract: "n",
+	multiply: "o",
+	divide: "p",
 	
 	// check to see if two values are equivalent
-	equivalent: "o",
+	equivalent: "q",
 	// join to strings
-	join: "p",
+	join: "r",
 	// break character
 	break: "\uFFFF",
 }
@@ -55,11 +59,13 @@ class ModliteRunTime {
 	index = 0
 	binary = ""
 	stack = []
+	globals = []
 	arp = 0 // activation record pointer
 	reset = () => {
 		this.index = 0
 		this.binary = ""
 		this.stack = []
+		this.globals = []
 		this.arp = 0
 	}
 	run = () => {
@@ -127,6 +133,19 @@ class ModliteRunTime {
 				const int = goToBreak()
 				// console.log("get", int)
 				this.stack.push(this.stack[Number(this.arp)+Number(int)])
+			}
+
+			else if (char == binaryCodes.setGlobal) {
+				const int = goToBreak()
+				const value = this.stack.pop()
+				// console.log("setGlobal", int, value)
+				this.globals[Number(int)] = value
+			}
+			
+			else if (char == binaryCodes.getGlobal) {
+				const int = goToBreak()
+				// console.log("getGlobal", int)
+				this.stack.push(this.globals[Number(int)])
 			}
 			
 			else if (char == binaryCodes.jump) {

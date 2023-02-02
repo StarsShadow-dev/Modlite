@@ -2,5 +2,4 @@ import { print } from "../node.json"
 
 public function test() void {
 	print("in test")
-	print("testing")
 }
