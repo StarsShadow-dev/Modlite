@@ -18,5 +18,19 @@
 			}
 		],
 		"return": "void"
+	},
+	"startsWith": {
+		"type": "exposedFunction",
+		"args": [
+			{
+				"name": "string",
+				"type": "string"
+			},
+			{
+				"name": "startString",
+				"type": "string"
+			}
+		],
+		"return": "bool"
 	}
 }

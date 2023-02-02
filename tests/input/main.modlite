@@ -1,4 +1,4 @@
-import { print createInput } from "../node.json"
+import { print createInput startsWith } from "../node.json"
 
 function main() void {
 	print("creating input")
@@ -10,8 +10,8 @@ function onInput(line:string) void {
 	// then runs the contents of that case
 	// (once the case is run the switch statement is over and no more cases can be run)
 	switch {
-		case (line == "test") {
-			print("testing stuff")
+		case (startsWith(line "line")) {
+			print("line = " .. line)
 		}
 		case (line == "box") {
 			print("┌─────┐")

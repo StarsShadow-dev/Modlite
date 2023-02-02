@@ -33,6 +33,12 @@ runTime.exposedFunctions.createInput = () => {
 	rl.prompt();
 }
 
+runTime.exposedFunctions.startsWith = () => {
+	const startString = runTime.stack.pop()
+	const string = runTime.stack.pop()
+	string.startsWith(startString)
+}
+
 const opCode = fs.readFileSync(path, "utf8")
 
 runTime.binary = opCode
