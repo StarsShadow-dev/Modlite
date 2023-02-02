@@ -346,12 +346,18 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 			})
 		} else if (token.value == "public") {
 			const next = next_token()
-			if (next.type != "word" || next.value != "function") err("unexpected 'public' keyword")
-			parse_function(next, true)
+			if (next.type != "word") err("unexpected 'public' keyword")
+			if (next.value == "function") {
+				parse_function(next, true)
+			} else if (next.value == "var") {
+				parse_var(next, true)
+			} else {
+				err("unexpected 'public' keyword")
+			}
 		} else if (token.value == "function") {
 			parse_function(token, false)
 		} else if (token.value == "var") {
-			parse_var()
+			parse_var(token, false)
 		} else if (token.value == "import") {
 			parse_import()
 		} else if (token.value == "if") {
@@ -519,15 +525,17 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 		})
 	}
 
-	function parse_var() {
+	function parse_var(token, isPublic) {
 		const name = next_token()
 
 		const type = next_token()
 
 		push_to_build({
 			type: "definition",
+			isPublic: isPublic,
 			name: name.value,
 			variableType: type.value,
+			lineNumber: token.lineNumber,
 		})
 	}
 
@@ -768,12 +776,16 @@ Modlite_compiler.compileCode = (rootPath) => {
 	if (!conf.saveTo) throw "no saveTo in conf"
 
 	try {
-		let files = {}
+		let context = {
+			rootPath: rootPath,
+			globalCount: 0
+		}
 		let assembly = [
 			"push", "*" + conf.entry + " main", "\n",
 			"jump", "\n"
 		]
-		Modlite_compiler.getAssembly(rootPath, conf.entry, files, assembly, true)
+		let files = {}
+		Modlite_compiler.getAssembly(conf.entry, context, assembly, files, true)
 		if (logEverything) console.log("assembly:\n " + assembly.join(" ") + "\n")
 
 		const opCode = Modlite_compiler.assemblyToOperationCode(assembly)
@@ -790,9 +802,9 @@ Modlite_compiler.compileCode = (rootPath) => {
 	}
 }
 
-Modlite_compiler.getAssembly = (rootPath, path, files, assembly, main) => {
-	const text = fs.readFileSync(join(rootPath, path), "utf8")
-	if (logEverything) console.log(`------- ${join(rootPath, path)} -------\n${text}\n`)
+Modlite_compiler.getAssembly = (path, context, assembly, files, main) => {
+	const text = fs.readFileSync(join(context.rootPath, path), "utf8")
+	if (logEverything) console.log(`------- ${join(context.rootPath, path)} -------\n${text}\n`)
 
 	const tokens = Modlite_compiler.lex(text)
 	if (logEverything) console.log("tokens:\n" + JSON.stringify(tokens, null) + "\n")
@@ -812,7 +824,7 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly, main) => {
 
 		if (thing.type != "function" && thing.type != "import" && thing.type != "definition") err("not a function or import or definition at top level")
 
-		if (!main && thing.type == "definition") err("global definitions must be in top level of the main file")
+		// if (!main && thing.type == "definition") err("global definitions must be in top level of the main file")
 	}
 
 	assemblyLoop(build_in, true, false)
@@ -847,7 +859,7 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly, main) => {
 			} else if (thing.type == "import") {
 				if (thing.path.endsWith(".modlite")) {
 					if (!files[thing.path]) {
-						Modlite_compiler.getAssembly(rootPath, thing.path, files, assembly, false)
+						Modlite_compiler.getAssembly(thing.path, context, assembly, files, false)
 					}
 					for (let i = 0; i < thing.imports.length; i++) {
 						const importName = thing.imports[i];
@@ -858,9 +870,9 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly, main) => {
 	
 						variables[0][importName] = files[thing.path][importName]
 					}
-					const text = fs.readFileSync(join(rootPath, thing.path), "utf8")
+					const text = fs.readFileSync(join(context.rootPath, thing.path), "utf8")
 				} else if (thing.path.endsWith(".json")) {
-					const jsonString = fs.readFileSync(join(rootPath, thing.path), "utf8")
+					const jsonString = fs.readFileSync(join(context.rootPath, thing.path), "utf8")
 	
 					const json = JSON.parse(jsonString)
 	
@@ -925,10 +937,11 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly, main) => {
 				if (level == 0) {
 					variables[level][thing.name] = {
 						type: thing.variableType,
-						index: getGlobalAmount(),
+						index: context.globalCount++,
 						global: true,
 						initialized: false,
 					}
+					files[path][thing.name] = variables[level][thing.name]
 				} else {
 					variables[level][thing.name] = {
 						type: thing.variableType,
@@ -960,7 +973,7 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly, main) => {
 
 				const variable = getVariable(thing.value)
 				if (!variable) err("variable " + thing.value + " does not exist")
-				if (variable.initialized == false) err("variable " + thing.value + " not initialized")
+				// if (variable.initialized == false) err("variable " + thing.value + " not initialized")
 
 				if (variable.type == "function") {
 					pushToAssembly(["push", "*" + variable.ID])

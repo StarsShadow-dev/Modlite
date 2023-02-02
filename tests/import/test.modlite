@@ -1,5 +1,8 @@
 import { print } from "../node.json"
 
+public var globalVariable string
+
 public function test() void {
-	print("in test")
+	globalVariable = "testing2"
+	print("globalVariable in test: " .. globalVariable)
 }
