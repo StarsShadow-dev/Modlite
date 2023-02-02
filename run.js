@@ -11,7 +11,7 @@ if (!path) throw "no path specified"
 const runTime = new ModliteRunTime()
 
 runTime.exposedFunctions.print = () => {
-	console.log("[print]", runTime.stack.pop())
+	console.log(runTime.stack.pop())
 	// if (rl) rl.prompt();
 }
 
