@@ -1,7 +1,7 @@
 import { print createInput } from "../node.json"
 
 function main() void {
-	print("in main")
+	print("creating input")
 	createInput(onInput)
 }
 

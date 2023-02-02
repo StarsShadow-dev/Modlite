@@ -1,5 +1,5 @@
 /*
-	RunTime version 6
+	RunTime version 7
 
 	For JavaScript.
 	Can run a web browser or node.
@@ -43,7 +43,9 @@ const binaryCodes = {
 	divide: "n",
 	
 	// check to see if two values are equivalent
-	equivalent: "z",
+	equivalent: "o",
+	// join to strings
+	join: "p",
 	// break character
 	break: "\uFFFF",
 }
@@ -205,6 +207,13 @@ class ModliteRunTime {
 				// console.log("equivalent", value1, value2)
 
 				this.stack.push(value1 == value2 ? "1" : "0")
+			}
+
+			else if (char == binaryCodes.join) {
+				const string2 = this.stack.pop()
+				const string1 = this.stack.pop()
+
+				this.stack.push(string1 + string2)
 			}
 			
 			else {

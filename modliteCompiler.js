@@ -65,7 +65,9 @@ const Modlite_compiler = {
 		divide: "n",
 		
 		// check to see if two values are equivalent
-		equivalent: "z",
+		equivalent: "o",
+		// join to strings
+		join: "p",
 		// break character
 		break: "\uFFFF",
 	},
@@ -440,10 +442,21 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 			exit = true
 			return
 		} else if (token.value == ".") {
-			push_to_build({
-				type: "method",
-				value: next_token().value,
-			})
+			const next = next_token()
+			if (next.type == "punctuation" && next.value == ".") {
+				push_to_build({
+					type: "join",
+					left: [build.pop()],
+					right: [Modlite_compiler.parse(context, tokens, true)[0]],
+				})
+			} else {
+				// undo the next_token()
+				back_token()
+				push_to_build({
+					type: "method",
+					value: next_token().value,
+				})
+			}
 		} else if (token.value == "!") {
 			const next = next_token()
 			if (next.type == "punctuation" && next.value == "(") {
@@ -676,6 +689,8 @@ Modlite_compiler.assemblyToOperationCode = (assembly) => {
 			opCode += Modlite_compiler.binaryCodes.divide
 		} else if (instruction == "equivalent") {
 			opCode += Modlite_compiler.binaryCodes.equivalent
+		} else if (instruction == "join") {
+			opCode += Modlite_compiler.binaryCodes.join
 		} else if (instruction == "\n") {
 
 		} else {
@@ -981,6 +996,14 @@ Modlite_compiler.getAssembly = (rootPath, path, files, assembly) => {
 				assemblyLoop(thing.left, false, true)
 				assemblyLoop(thing.right, false, true)
 				pushToAssembly(["equivalent"])
+			}
+
+			else if (thing.type == "join") {
+				console.log("join", thing)
+
+				assemblyLoop(thing.left, false, true)
+				assemblyLoop(thing.right, false, true)
+				pushToAssembly(["join"])
 			}
 
 			else if (thing.type == "if") {
