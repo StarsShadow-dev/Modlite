@@ -4,13 +4,13 @@
 	A work in progress programming language.
 	Currently compiles to a custom operation code and can run in JavaScript.
 
-	node modliteCompiler.js ./tests/return
-	node modliteCompiler.js ./tests/return true
+	node modliteCompiler.js ./tests/print run
+	node modliteCompiler.js ./tests/print run true
 */
 
 // Modlite building environment
 const Modlite_compiler = {
-	version: "13.1.0",
+	version: "13.2.0",
 	string: "",
 	devlog: true,
 

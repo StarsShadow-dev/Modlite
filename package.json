@@ -1,6 +1,6 @@
 {
   "name": "modlite",
-  "version": "13.0.0",
+  "version": "13.2.0",
   "description": "A work in progress programming language.",
   "type": "module",
   "scripts": {
