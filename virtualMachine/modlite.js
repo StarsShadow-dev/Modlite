@@ -1,5 +1,5 @@
 /*
-	RunTime version 9
+	RunTime version 10
 
 	For JavaScript.
 	Can run a web browser or node.
@@ -50,6 +50,9 @@ const binaryCodes = {
 	equivalent: "q",
 	// join to strings
 	join: "r",
+	// reverse a bool
+	// true = false and false = true
+	not: "z",
 	// break character
 	break: "\uFFFF",
 }
@@ -254,6 +257,12 @@ class ModliteRunTime {
 				const string1 = this.stack.pop()
 
 				this.stack.push(string1 + string2)
+			}
+
+			else if (char == binaryCodes.not) {
+				const bool = this.stack.pop()
+
+				this.stack.push(bool == "0" ? "1" : "0")
 			}
 			
 			else {

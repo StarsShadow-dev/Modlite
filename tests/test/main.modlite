@@ -1,4 +1,4 @@
-import { print startsWith } from "../../StandardLibrary.json"
+import { print startsWith error } from "../../StandardLibrary.json"
 
 var msg string
 
@@ -11,9 +11,17 @@ test print {
 	print(msg)
 }
 
-test startsWith {
-	print("should be 1:")
-	print(startsWith(msg "Hello") == true)
-	print("should be 0:")
-	print(startsWith(msg "bye") == true)
+test startsWith_true {
+	if (startsWith(msg "Hello") == true) {
+		print("PASS")
+	} else {
+		error("test fail")
+	}
+}
+test startsWith_true {
+	if (startsWith(msg "bye") != true) {
+		print("PASS")
+	} else {
+		error("test fail")
+	}
 }

@@ -72,6 +72,9 @@ const Modlite_compiler = {
 		equivalent: "q",
 		// join to strings
 		join: "r",
+		// reverse a bool
+		// true = false and false = true
+		not: "z",
 		// break character
 		break: "\uFFFF",
 	},
@@ -478,6 +481,16 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 					type: "assert",
 					value: next_token().value,
 				})
+			} else if (next.type == "operator" && next.value == "=") {
+				const past = build.pop()
+
+				if (!past) err("unexpected '!'")
+
+				push_to_build({
+					type: "notEquivalent",
+					left: [past],
+					right: [Modlite_compiler.parse(context, tokens, true)[0]],
+				})
 			} else {
 				push_to_build({
 					type: "assert",
@@ -739,6 +752,8 @@ Modlite_compiler.assemblyToOperationCode = (assembly) => {
 			opCode += Modlite_compiler.binaryCodes.equivalent
 		} else if (instruction == "join") {
 			opCode += Modlite_compiler.binaryCodes.join
+		} else if (instruction == "not") {
+			opCode += Modlite_compiler.binaryCodes.not
 		} else if (instruction == "\n") {
 
 		} else {
@@ -793,11 +808,9 @@ const rootPath = process.argv[2]
 
 if (!rootPath) throw "no path specified"
 
-const buildType = process.argv[3]
+const testBuild = process.argv.includes("--test")
 
-if (buildType != "run" && buildType != "test") throw "unknown buildType " + buildType
-
-const logEverything = process.argv[4] == "true"
+const logEverything = process.argv.includes("--log")
 
 Modlite_compiler.compileCode = (rootPath) => {
 	const jsonString = fs.readFileSync(join(rootPath, "conf.json"), "utf8")
@@ -829,7 +842,7 @@ Modlite_compiler.compileCode = (rootPath) => {
 		let files = {}
 		Modlite_compiler.getAssembly(conf.entry, context, files, true)
 		if (logEverything) console.log("files:\n", JSON.stringify(files) + "\n")
-		if (buildType == "test") {
+		if (testBuild) {
 			if (files[conf.entry].main && files[conf.entry].main.type == "function") {
 				assembly.push("push", "*startEnd", "\n")
 				assembly.push(...context.startAssembly)
@@ -849,7 +862,7 @@ Modlite_compiler.compileCode = (rootPath) => {
 		// save the opCode to a file in the rootPath
 		fs.writeFile(join(rootPath, conf.saveTo), opCode, function (err) {
 			if (err) throw err
-			if (buildType == "test") {
+			if (testBuild) {
 				console.log("test build saved to " + join(rootPath, conf.saveTo))
 			} else {
 				console.log("saved to " + join(rootPath, conf.saveTo))
@@ -981,7 +994,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				pushToAssembly(["jump"])
 			}
 
-			else if (thing.type == "test" && buildType == "test") {
+			else if (thing.type == "test" && testBuild) {
 				if (level != 0) err("tests can only be defined at top level")
 				// if (variables[0][thing.name]) err(`variable ${thing.name} already exists`)
 
@@ -1117,6 +1130,13 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				assemblyLoop(assembly, thing.left, false, true)
 				assemblyLoop(assembly, thing.right, false, true)
 				pushToAssembly(["equivalent"])
+			}
+
+			else if (thing.type == "notEquivalent") {
+				assemblyLoop(assembly, thing.left, false, true)
+				assemblyLoop(assembly, thing.right, false, true)
+				pushToAssembly(["equivalent"])
+				pushToAssembly(["not"])
 			}
 
 			else if (thing.type == "join") {
