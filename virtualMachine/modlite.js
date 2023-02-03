@@ -1,5 +1,5 @@
 /*
-	RunTime version 8
+	RunTime version 9
 
 	For JavaScript.
 	Can run a web browser or node.
@@ -55,7 +55,28 @@ const binaryCodes = {
 }
 
 class ModliteRunTime {
-	exposedFunctions = {}
+	exposedFunctions = {
+		// add the standard library this includes functions like print, error and startsWith
+		print: () => {
+			console.log(this.stack.pop())
+		},
+		error: () => {
+			console.error("[error]", this.stack.pop(), "\n")
+			console.error("index", this.index)
+			console.error("arp", this.arp)
+			console.error("stack", this.stack)
+			console.error("globals", this.globals, "\n")
+			console.error("program ending early\n")
+	
+			this.index = this.binary.length
+			this.reset()
+		},
+		startsWith: () => {
+			const startString = this.stack.pop()
+			const string = this.stack.pop()
+			this.stack.push(string.startsWith(startString) ? "1" : "0")
+		},
+	}
 	index = 0
 	binary = ""
 	stack = []

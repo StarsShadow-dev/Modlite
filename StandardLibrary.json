@@ -1,0 +1,36 @@
+{
+	"print": {
+		"type": "exposedFunction",
+		"args": [
+			{
+				"name": "message",
+				"type": "any"
+			}
+		],
+		"return": "void"
+	},
+	"error": {
+		"type": "exposedFunction",
+		"args": [
+			{
+				"name": "message",
+				"type": "any"
+			}
+		],
+		"return": "never"
+	},
+	"startsWith": {
+		"type": "exposedFunction",
+		"args": [
+			{
+				"name": "string",
+				"type": "string"
+			},
+			{
+				"name": "startString",
+				"type": "string"
+			}
+		],
+		"return": "bool"
+	}
+}

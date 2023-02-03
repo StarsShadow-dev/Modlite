@@ -1,4 +1,4 @@
-import { print startsWith } from "../node.json"
+import { print startsWith } from "../../StandardLibrary.json"
 
 var msg string
 

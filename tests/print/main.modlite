@@ -1,4 +1,4 @@
-import { print } from "../node.json"
+import { print } from "../../StandardLibrary.json"
 
 function main() void {
 	var msg string

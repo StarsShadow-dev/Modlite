@@ -1,0 +1,12 @@
+import { error } from "../../StandardLibrary.json"
+
+var global string
+
+public function main() void {
+	var local string
+
+	global = "a global"
+	local = "a local"
+	
+	error("test error")
+}

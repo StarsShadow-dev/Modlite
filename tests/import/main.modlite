@@ -1,4 +1,4 @@
-import { print } from "../node.json"
+import { print } from "../../StandardLibrary.json"
 import { test globalVariable } from "test.modlite"
 
 function main() void {

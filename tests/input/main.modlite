@@ -1,4 +1,5 @@
-import { print createInput startsWith } from "../node.json"
+import { print startsWith } from "../../StandardLibrary.json"
+import { createInput } from "../node.json"
 
 function main() void {
 	print("creating input")

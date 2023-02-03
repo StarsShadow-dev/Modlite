@@ -1,4 +1,4 @@
-import { print } from "../node.json"
+import { print } from "../../StandardLibrary.json"
 
 public var globalVariable string
 
