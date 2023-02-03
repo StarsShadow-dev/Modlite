@@ -364,6 +364,8 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 			parse_if()
 		} else if (token.value == "switch") {
 			parse_switch()
+		} else if (token.value == "while") {
+			parse_while()
 		} else {
 			push_to_build({
 				type: "var",
@@ -605,6 +607,19 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 		push_to_build({
 			type: "switch",
 			statements: statements,
+		})
+	}
+
+	function parse_while() {
+		next_token()
+		const condition = Modlite_compiler.parse(context, tokens, false)
+		next_token()
+		const statement = Modlite_compiler.parse(context, tokens, false)
+
+		push_to_build({
+			type: "while",
+			condition: condition,
+			statement: statement
 		})
 	}
 
@@ -1097,7 +1112,25 @@ Modlite_compiler.getAssembly = (path, context, assembly, files, main) => {
 				pushToAssembly(["@" + endJump_id])
 			}
 
-			else if (thing.type ==  "case") {
+			else if (thing.type == "while") {
+				const while_top_id = "while_top_id" + assembly.length
+				const while_bottom_id = "while_bottom_id" + assembly.length
+
+				pushToAssembly(["push", "*" + while_bottom_id])
+				pushToAssembly(["jump"])
+
+
+				pushToAssembly(["@" + while_top_id])
+				assemblyLoop(thing.statement, false, true)
+
+
+				pushToAssembly(["@" + while_bottom_id])
+				assemblyLoop(thing.condition, false, true)
+				pushToAssembly(["push", "*" + while_top_id])
+				pushToAssembly(["conditionalJump"])
+			}
+
+			else if (thing.type == "case") {
 				err("unexpected case")
 			}
 		}

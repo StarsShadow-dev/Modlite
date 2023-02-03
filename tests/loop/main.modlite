@@ -1,0 +1,14 @@
+import { print } from "../node.json"
+
+function main() void {
+	print("loop test")
+	var loopNumber number
+	loopNumber = 0
+	while (false) {
+		print("err")
+	}
+	while (true) {
+		loopNumber = loopNumber + 1
+		print("loopNumber " .. loopNumber)
+	}
+}
