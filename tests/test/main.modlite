@@ -1,0 +1,19 @@
+import { print startsWith } from "../node.json"
+
+var msg string
+
+public function main() void {
+	msg = "Hello, World"
+	print("in main")
+}
+
+test print {
+	print(msg)
+}
+
+test startsWith {
+	print("should be 1:")
+	print(startsWith(msg "Hello") == true)
+	print("should be 0:")
+	print(startsWith(msg "bye") == true)
+}
