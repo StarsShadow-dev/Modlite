@@ -6,6 +6,7 @@ function main() void {
 }
 
 function onInput(line:string) void {
+	print(line)
 	// a switch statement evaluates case conditions from top to bottom until a condition is true
 	// then runs the contents of that case
 	// (once the case is run the switch statement is over and no more cases can be run)

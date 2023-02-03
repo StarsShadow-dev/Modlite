@@ -14,7 +14,13 @@
 		"args": [
 			{
 				"name": "onInput",
-				"type": "function"
+				"type": "function",
+				"args": [
+					{
+						"name": "line",
+						"type": "string"
+					}
+				]
 			}
 		],
 		"return": "void"

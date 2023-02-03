@@ -442,7 +442,7 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 				push_to_build({
 					type: "call",
 					name: past.value,
-					value: Modlite_compiler.parse(context, tokens, false),
+					args: Modlite_compiler.parse(context, tokens, false),
 				})
 			}
 		} else if (token.value == ")") {
@@ -1009,17 +1009,33 @@ Modlite_compiler.getAssembly = (path, context, assembly, files, main) => {
 
 				if (variable.type != "function" && variable.type != "exposedFunction") err(`variable ${thing.name} is not a function`)
 
-				if (variable.args.length > thing.value.length) err(`not enough arguments for ${thing.name} requires ${variable.args.length}`)
-				if (variable.args.length < thing.value.length) err(`too many arguments for ${thing.name} requires ${variable.args.length}`)
+				if (variable.args.length > thing.args.length) err(`not enough arguments for ${thing.name} requires ${variable.args.length}`)
+				if (variable.args.length < thing.args.length) err(`too many arguments for ${thing.name} requires ${variable.args.length}`)
+
+				for (let i = 0; i < variable.args.length; i++) {
+					const expectedArgument = variable.args[i];
+					let actualArgument = thing.args[i];
+
+					// a mess
+					if (actualArgument.type == "var") {
+						const varArg = getVariable(actualArgument.value)
+						if (!varArg) err(`(arg) variable ${actualArgument.value} does not exist`)
+						if (expectedArgument.type != varArg.type) err(`argument ${i+1} expected type ${expectedArgument.type} but got type ${actualArgument.type}`)
+					} else if (actualArgument.type == "join") {
+						if (expectedArgument.type != "string") err(`argument ${i+1} expected type ${expectedArgument.type} but got type ${actualArgument.type}`)
+					} else {
+						if (expectedArgument.type != actualArgument.type) err(`argument ${i+1} expected type ${expectedArgument.type} but got type ${actualArgument.type}`)
+					}
+				}
 
 				if (variable.type == "exposedFunction") {
-					assemblyLoop(thing.value, false, true)
+					assemblyLoop(thing.args, false, true)
 					pushToAssembly(["push", thing.name])
 					pushToAssembly(["externalJump"])
 				} else {
 					const return_location = "return_location" + context.uniqueIdentifierCounter++
 					pushToAssembly(["push", "*" + return_location])
-					assemblyLoop(thing.value, false, true)
+					assemblyLoop(thing.args, false, true)
 					pushToAssembly(["push", "*" + variable.ID])
 					pushToAssembly(["jump"])
 					pushToAssembly(["@" + return_location])
