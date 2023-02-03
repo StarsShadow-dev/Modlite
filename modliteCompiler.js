@@ -793,7 +793,8 @@ Modlite_compiler.compileCode = (rootPath) => {
 	try {
 		let context = {
 			rootPath: rootPath,
-			globalCount: 0
+			globalCount: 0,
+			uniqueIdentifierCounter: 0
 		}
 		let assembly = [
 			"push", "*" + conf.entry + " main", "\n",
@@ -1016,12 +1017,12 @@ Modlite_compiler.getAssembly = (path, context, assembly, files, main) => {
 					pushToAssembly(["push", thing.name])
 					pushToAssembly(["externalJump"])
 				} else {
-					const jump_id = assembly.length
-					pushToAssembly(["push", "*" + jump_id])
+					const return_location = "return_location" + context.uniqueIdentifierCounter++
+					pushToAssembly(["push", "*" + return_location])
 					assemblyLoop(thing.value, false, true)
 					pushToAssembly(["push", "*" + variable.ID])
 					pushToAssembly(["jump"])
-					pushToAssembly(["@" + jump_id])
+					pushToAssembly(["@" + return_location])
 				}
 
 				// if the function returns something pop the return value off because it is not being used
@@ -1058,35 +1059,35 @@ Modlite_compiler.getAssembly = (path, context, assembly, files, main) => {
 			}
 
 			else if (thing.type == "if") {
-				const jump_id = assembly.length
+				const if_jump = "if_jump" + context.uniqueIdentifierCounter++
 
 				assemblyLoop(thing.condition, false, true)
-				pushToAssembly(["push", "*" + jump_id])
+				pushToAssembly(["push", "*" + if_jump])
 				pushToAssembly(["notConditionalJump"])
 				assemblyLoop(thing.trueStatement, false, false)
-				pushToAssembly(["@" + jump_id])
+				pushToAssembly(["@" + if_jump])
 			}
 
 			else if (thing.type == "if_else") {
-				const trueJump_id = assembly.length
-				const endJump_id = assembly.length + 1
+				const if_else_true = "if_else_true" + context.uniqueIdentifierCounter++
+				const if_else_end = "if_else_end" + context.uniqueIdentifierCounter++
 
 				assemblyLoop(thing.condition, false, true)
-				pushToAssembly(["push", "*" + trueJump_id])
+				pushToAssembly(["push", "*" + if_else_true])
 				pushToAssembly(["conditionalJump"])
 
 				assemblyLoop(thing.falseStatement, false, false)
-				pushToAssembly(["push", "*" + endJump_id])
+				pushToAssembly(["push", "*" + if_else_end])
 				pushToAssembly(["jump"])
 
-				pushToAssembly(["@" + trueJump_id])
+				pushToAssembly(["@" + if_else_true])
 				assemblyLoop(thing.trueStatement, false, false)
 
-				pushToAssembly(["@" + endJump_id])
+				pushToAssembly(["@" + if_else_end])
 			}
 
 			else if (thing.type == "switch") {
-				const endJump_id = "endJump_id" + assembly.length
+				const switch_end = "switch_end" + context.uniqueIdentifierCounter++
 
 				for (let index = 0; index < thing.statements.length; index++) {
 					const Case = thing.statements[index];
@@ -1094,39 +1095,39 @@ Modlite_compiler.getAssembly = (path, context, assembly, files, main) => {
 					
 					if (Case.type != "case") err("not a case")
 
-					const overJump_id = "overJump_id" + assembly.length
+					const switch_over = "switch_over" + index + " " + context.uniqueIdentifierCounter++
 
 					assemblyLoop(Case.condition, false, true)
 
-					pushToAssembly(["push", "*" + overJump_id])
+					pushToAssembly(["push", "*" + switch_over])
 					pushToAssembly(["notConditionalJump"])
 
 					assemblyLoop(Case.statement, false, true)
 
-					pushToAssembly(["push", "*" + endJump_id])
+					pushToAssembly(["push", "*" + switch_end])
 					pushToAssembly(["jump"])
 
-					pushToAssembly(["@" + overJump_id])
+					pushToAssembly(["@" + switch_over])
 				}
 
-				pushToAssembly(["@" + endJump_id])
+				pushToAssembly(["@" + switch_end])
 			}
 
 			else if (thing.type == "while") {
-				const while_top_id = "while_top_id" + assembly.length
-				const while_bottom_id = "while_bottom_id" + assembly.length
+				const while_top = "while_top" + context.uniqueIdentifierCounter++
+				const while_bottom = "while_bottom_id" + context.uniqueIdentifierCounter++
 
-				pushToAssembly(["push", "*" + while_bottom_id])
+				pushToAssembly(["push", "*" + while_bottom])
 				pushToAssembly(["jump"])
 
 
-				pushToAssembly(["@" + while_top_id])
+				pushToAssembly(["@" + while_top])
 				assemblyLoop(thing.statement, false, true)
 
 
-				pushToAssembly(["@" + while_bottom_id])
+				pushToAssembly(["@" + while_bottom])
 				assemblyLoop(thing.condition, false, true)
-				pushToAssembly(["push", "*" + while_top_id])
+				pushToAssembly(["push", "*" + while_top])
 				pushToAssembly(["conditionalJump"])
 			}
 

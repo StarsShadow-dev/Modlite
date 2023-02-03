@@ -36,7 +36,7 @@ runTime.exposedFunctions.createInput = () => {
 runTime.exposedFunctions.startsWith = () => {
 	const startString = runTime.stack.pop()
 	const string = runTime.stack.pop()
-	string.startsWith(startString)
+	runTime.stack.push(string.startsWith(startString) ? "1" : "0")
 }
 
 const opCode = fs.readFileSync(path, "utf8")
