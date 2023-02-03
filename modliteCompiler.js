@@ -401,7 +401,7 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 				right: [Modlite_compiler.parse(context, tokens, true)[0]],
 			})
 			// TODO: fix this
-			back_token()
+			// back_token()
 		} else if (token.value == "=") {
 			const next = next_token()
 			if (next.type == "operator" && next.value == "=") {
@@ -1009,24 +1009,7 @@ Modlite_compiler.getAssembly = (path, context, assembly, files, main) => {
 
 				if (variable.type != "function" && variable.type != "exposedFunction") err(`variable ${thing.name} is not a function`)
 
-				if (variable.args.length > thing.args.length) err(`not enough arguments for ${thing.name} requires ${variable.args.length}`)
-				if (variable.args.length < thing.args.length) err(`too many arguments for ${thing.name} requires ${variable.args.length}`)
-
-				for (let i = 0; i < variable.args.length; i++) {
-					const expectedArgument = variable.args[i];
-					let actualArgument = thing.args[i];
-
-					// a mess
-					if (actualArgument.type == "var") {
-						const varArg = getVariable(actualArgument.value)
-						if (!varArg) err(`(arg) variable ${actualArgument.value} does not exist`)
-						if (expectedArgument.type != varArg.type) err(`argument ${i+1} expected type ${expectedArgument.type} but got type ${actualArgument.type}`)
-					} else if (actualArgument.type == "join") {
-						if (expectedArgument.type != "string") err(`argument ${i+1} expected type ${expectedArgument.type} but got type ${actualArgument.type}`)
-					} else {
-						if (expectedArgument.type != actualArgument.type) err(`argument ${i+1} expected type ${expectedArgument.type} but got type ${actualArgument.type}`)
-					}
-				}
+				checkArguments(thing.name, thing.args, variable.args)
 
 				if (variable.type == "exposedFunction") {
 					assemblyLoop(thing.args, false, true)
@@ -1198,6 +1181,46 @@ Modlite_compiler.getAssembly = (path, context, assembly, files, main) => {
 		}
 
 		return count
+	}
+
+	function checkArguments(name, actualArguments, expectedArguments) {
+
+		if (actualArguments.length > expectedArguments.length) err(`too many arguments for ${name} requires ${expectedArguments.length}`)
+		if (actualArguments.length < expectedArguments.length) err(`not enough arguments for ${name} requires ${expectedArguments.length}`)
+
+		for (let i = 0; i < actualArguments.length; i++) {
+			const expectedArgument = expectedArguments[i];
+			let actualArgument = actualArguments[i];
+
+			// if this argument can take anything just continue
+			if (expectedArgument.type == "any") continue
+
+			if (actualArgument.type == "var") {
+				const varArg = getVariable(actualArgument.value)
+				if (!varArg) err(`(arg var) variable ${actualArgument.value} does not exist`)
+				actualArgument = varArg
+			} else if (actualArgument.type == "call") {
+				const varArg = getVariable(actualArgument.name)
+				if (!varArg) err(`(arg call) variable ${actualArgument.name} does not exist`)
+				actualArgument = {
+					type: varArg.return
+				}
+			} else if (actualArgument.type == "join") {
+				actualArgument = {
+					type: "string"
+				}
+			} else if (actualArgument.type == "operation") {
+				actualArgument = {
+					type: "number"
+				}
+			}
+
+			if (actualArgument.type != expectedArgument.type) err(`${name} argument ${i+1} expected type ${expectedArgument.type} but got type ${actualArgument.type}`)
+
+			if (expectedArgument.type == "function") {
+				checkArguments("internal_function" + (i+1), actualArgument.args, expectedArgument.args)
+			}
+		}
 	}
 
 	function err(msg) {

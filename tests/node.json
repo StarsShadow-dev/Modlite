@@ -4,7 +4,7 @@
 		"args": [
 			{
 				"name": "message",
-				"type": "string"
+				"type": "any"
 			}
 		],
 		"return": "void"
@@ -20,7 +20,8 @@
 						"name": "line",
 						"type": "string"
 					}
-				]
+				],
+				"return": "void"
 			}
 		],
 		"return": "void"
