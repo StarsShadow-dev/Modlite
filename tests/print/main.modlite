@@ -1,12 +1,7 @@
 import { print } from "../../StandardLibrary.json"
 
 function main() void {
-	var msg string
-	msg = "Hello, World"
-
-	if (msg == "Hello, World") {
-		print(msg)
-	} else {
-		print("error not \"Hello, World\"")
-	}
+	print("Hello, World")
+	print("line1\nline2")
+	print("\ttab")
 }

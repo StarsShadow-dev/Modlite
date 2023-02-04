@@ -12,7 +12,7 @@ const runTime = new ModliteRunTime()
 
 var rl = undefined
 var onInputI = undefined
-runTime.exposedFunctions.createInput = () => {
+runTime.exposedFunctions["Node:createInput"] = () => {
 	rl = readline.createInterface({
 		input: process.stdin,
 		output: process.stdout

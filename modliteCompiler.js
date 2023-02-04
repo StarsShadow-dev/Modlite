@@ -4,8 +4,8 @@
 	A work in progress programming language.
 	Currently compiles to a custom operation code and can run in JavaScript.
 
-	node modliteCompiler.js ./tests/print run
-	node modliteCompiler.js ./tests/print run true
+	node modliteCompiler.js ./tests/print
+	node modliteCompiler.js ./tests/print
 */
 
 // Modlite building environment
@@ -56,7 +56,7 @@ const Modlite_compiler = {
 		conditionalJump: "j",
 		// jump but only if a condition is false
 		notConditionalJump: "k",
-		// jumps to code in the host programming language
+		// jumps to code outside of the binary
 		externalJump: "l",
 	
 		//
@@ -210,8 +210,16 @@ Modlite_compiler.lex = (stringin) => {
 						back_char()
 						return past
 					}
+					if (escaped) {
+						if (char == "n") {
+							past += "\n"
+						} else if (char == "t") {
+							past += "\t"
+						}
+					} else {
+						past += char
+					}
 					escaped = false
-					past += char
 				}
 			}
 		}
@@ -359,8 +367,6 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 			}
 		} else if (token.value == "function") {
 			parse_function(token, false)
-		} else if (token.value == "test") {
-			parse_test(token)
 		} else if (token.value == "var") {
 			parse_var(token, false)
 		} else if (token.value == "import") {
@@ -548,22 +554,6 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 	// 	})
 	// }
 
-	function parse_test(token) {
-		const name = next_token()
-
-		// eat the "{"
-		next_token()
-
-		const statement = Modlite_compiler.parse(context, tokens, false)
-
-		push_to_build({
-			type: "test",
-			name: name.value,
-			value: statement,
-			lineNumber: token.lineNumber,
-		})
-	}
-
 	function parse_var(token, isPublic) {
 		const name = next_token()
 
@@ -571,7 +561,7 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 
 		push_to_build({
 			type: "definition",
-			isPublic: isPublic,
+			public: isPublic,
 			name: name.value,
 			variableType: type.value,
 			lineNumber: token.lineNumber,
@@ -583,6 +573,7 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 		const parse = Modlite_compiler.parse(context, tokens, false)
 
 		const from = next_token()
+
 		if (from.type != "word") err("expected the word 'from'")
 		if (from.value != "from") err("expected the word 'from'")
 
@@ -808,9 +799,11 @@ const rootPath = process.argv[2]
 
 if (!rootPath) throw "no path specified"
 
+const logEverything = process.argv.includes("--log")
+
 const testBuild = process.argv.includes("--test")
 
-const logEverything = process.argv.includes("--log")
+const debugBuild = process.argv.includes("--debug")
 
 Modlite_compiler.compileCode = (rootPath) => {
 	const jsonString = fs.readFileSync(join(rootPath, "conf.json"), "utf8")
@@ -835,24 +828,25 @@ Modlite_compiler.compileCode = (rootPath) => {
 				"push", "*" + conf.entry + " main", "\n",
 				"jump", "\n",
 			],
-			testAssembly: [],
+			// testAssembly: [],
 			mainAssembly: [],
 		}
 		let assembly = []
 		let files = {}
 		Modlite_compiler.getAssembly(conf.entry, context, files, true)
 		if (logEverything) console.log("files:\n", JSON.stringify(files) + "\n")
-		if (testBuild) {
-			if (files[conf.entry].main && files[conf.entry].main.type == "function") {
-				assembly.push("push", "*startEnd", "\n")
-				assembly.push(...context.startAssembly)
-				assembly.push("@startEnd", "\n")
-			}
-			assembly.push(...context.testAssembly)
-			assembly.push("jump", "\n")
-		} else {
-			assembly.push(...context.startAssembly)
-		}
+		// if (testBuild) {
+		// 	if (files[conf.entry].main && files[conf.entry].main.type == "function") {
+		// 		assembly.push("push", "*startEnd", "\n")
+		// 		assembly.push(...context.startAssembly)
+		// 		assembly.push("@startEnd", "\n")
+		// 	}
+		// 	assembly.push(...context.testAssembly)
+		// 	assembly.push("jump", "\n")
+		// } else {
+		// 	assembly.push(...context.startAssembly)
+		// }
+		assembly.push(...context.startAssembly)
 		assembly.push(...context.mainAssembly)
 		if (logEverything) console.log("assembly:\n " + assembly.join(" ") + "\n")
 
@@ -993,30 +987,6 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				if (variables[0][thing.name].args.length > 0) pushToAssembly(["pop", String(variables[0][thing.name].args.length)])
 				pushToAssembly(["jump"])
 			}
-
-			else if (thing.type == "test" && testBuild) {
-				if (level != 0) err("tests can only be defined at top level")
-				// if (variables[0][thing.name]) err(`variable ${thing.name} already exists`)
-
-				const ID = `${context.testCounter++} ${path} ${thing.name}`
-		
-				// variables[0][thing.name] = {
-				// 	type: "test",
-				// 	ID: ID,
-				// }
-				// files[path][thing.name] = variables[0][thing.name]
-
-				// context.testAssembly.push("@" + ID, "\n")
-				
-				// for now just do an external jump to the print function
-				// TODO add opCode for this?
-				context.testAssembly.push("push", "running test " + ID + ":", "\n")
-				context.testAssembly.push("push", "print", "\n")
-				context.testAssembly.push("externalJump", "\n")
-
-				assemblyLoop(context.testAssembly, thing.value, true, false)
-				// context.testAssembly.push("jump", "\n")
-			}
 			
 			else if (thing.type == "string" || thing.type == "number") {
 				if (!expectValues) err(`unexpected ${thing.type}`)
@@ -1036,6 +1006,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 						type: thing.variableType,
 						index: context.globalCount++,
 						global: true,
+						public: thing.public,
 						initialized: false,
 					}
 					files[path][thing.name] = variables[level][thing.name]
@@ -1094,7 +1065,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 				if (variable.type == "exposedFunction") {
 					assemblyLoop(assembly, thing.args, false, true)
-					pushToAssembly(["push", thing.name])
+					pushToAssembly(["push", variable.ID])
 					pushToAssembly(["externalJump"])
 				} else {
 					const return_location = "return_location" + context.uniqueIdentifierCounter++

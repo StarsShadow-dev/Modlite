@@ -1,5 +1,5 @@
 /*
-	RunTime version 10
+	RunTime version 11
 
 	For JavaScript.
 	Can run a web browser or node.
@@ -34,7 +34,7 @@ const binaryCodes = {
 	conditionalJump: "j",
 	// jump but only if a condition is false
 	notConditionalJump: "k",
-	// jumps to code in the host programming language
+	// jumps to code outside of the binary
 	externalJump: "l",
 
 	//
@@ -58,12 +58,12 @@ const binaryCodes = {
 }
 
 class ModliteRunTime {
+	// add the Modlite standard library this includes functions like print, error and startsWith
 	exposedFunctions = {
-		// add the standard library this includes functions like print, error and startsWith
-		print: () => {
+		["MLSL:print"]: () => {
 			console.log(this.stack.pop())
 		},
-		error: () => {
+		["MLSL:error"]: () => {
 			console.error("[error]", this.stack.pop(), "\n")
 			console.error("index", this.index)
 			console.error("arp", this.arp)
@@ -74,7 +74,7 @@ class ModliteRunTime {
 			this.index = this.binary.length
 			this.reset()
 		},
-		startsWith: () => {
+		["MLSL:startsWith"]: () => {
 			const startString = this.stack.pop()
 			const string = this.stack.pop()
 			this.stack.push(string.startsWith(startString) ? "1" : "0")

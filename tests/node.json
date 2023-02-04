@@ -1,6 +1,7 @@
 {
 	"createInput": {
 		"type": "exposedFunction",
+		"ID": "Node:createInput",
 		"args": [
 			{
 				"name": "onInput",

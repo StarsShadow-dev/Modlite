@@ -1,6 +1,7 @@
 {
 	"print": {
 		"type": "exposedFunction",
+		"ID": "MLSL:print",
 		"args": [
 			{
 				"name": "message",
@@ -11,6 +12,7 @@
 	},
 	"error": {
 		"type": "exposedFunction",
+		"ID": "MLSL:error",
 		"args": [
 			{
 				"name": "message",
@@ -21,6 +23,7 @@
 	},
 	"startsWith": {
 		"type": "exposedFunction",
+		"ID": "MLSL:startsWith",
 		"args": [
 			{
 				"name": "string",
