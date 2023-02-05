@@ -4,4 +4,8 @@ function main() void {
 	print("Hello, World")
 	print("line1\nline2")
 	print("\ttab")
+	print("add:")
+	print(1 + 1)
+	print("join:")
+	print("1" .. "1")
 }
