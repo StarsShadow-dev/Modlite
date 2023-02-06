@@ -176,6 +176,8 @@ Modlite_compiler.lex = (stringin) => {
 			const next = next_char()
 			if (char == "=" && next == "=") {
 				push_token("operator", "==")
+			} else if (char == "!" && next == "=") {
+				push_token("operator", "!=")
 			} else if (char == "." && next == ".") {
 				push_token("operator", "..")
 			} else {
@@ -396,6 +398,13 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 				const parse = Modlite_compiler.parse(context, tokens, true)
 				push_to_build({
 					type: "equivalent",
+					left: [prior],
+					right: [parse[0]],
+				})
+			} else if (token.value == "!=") {
+				const parse = Modlite_compiler.parse(context, tokens, true)
+				push_to_build({
+					type: "notEquivalent",
 					left: [prior],
 					right: [parse[0]],
 				})
@@ -1026,7 +1035,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			
 			else if (thing.type == "call") {
 				if (Modlite_compiler.reservedWords.includes(thing.name)) err(`${thing.name} is a reserved word`)
-				
+
 				const variable = getVariable(thing.name)
 
 				if (!variable) err(`(call) variable ${thing.name} does not exist`)

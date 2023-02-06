@@ -1,0 +1,18 @@
+import { print } from "../../StandardLibrary.json"
+
+function main() void {
+	if (true) {
+		print("true")
+	}
+	if (false) {
+		print("something is very wrong")
+	}
+
+	if ("test" == "test") {
+		print("test == test")
+	}
+
+	if ("test" != "notTest") {
+		print("test != test")
+	}
+}
