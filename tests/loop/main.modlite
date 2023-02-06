@@ -6,9 +6,6 @@ function main() void {
 	print("loop test")
 	
 	loopNumber = 0
-	while (false) {
-		print("error")
-	}
 	while (true) {
 		loopNumber = loopNumber + 1
 		print("loopNumber " .. loopNumber)

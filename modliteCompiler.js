@@ -5,27 +5,22 @@
 	Currently compiles to a custom operation code and can run in JavaScript.
 
 	node modliteCompiler.js ./tests/print
-	node modliteCompiler.js ./tests/print
+	node modliteCompiler.js ./tests/print --log
 */
 
 // Modlite building environment
 const Modlite_compiler = {
 	version: "13.2.0",
 	string: "",
-	devlog: true,
 
-	exposedVars: {},
-
-	modules: {},
-
-	// stuff for the lexar
-	openString: /[\"\'\`]/,
-	identifierStart: /[a-zA-Z\_]/,
-	identifierNotEnd: /[a-zA-Z0-9\_]/,
-
-	punctuation: /[\(\)\{\}\.\!\:]/,
-
-	operator: /[\+\-\*\/\=]/,
+	reservedWords: [
+		"if",
+		"else",
+		"switch",
+		"while",
+		"true",
+		"false",
+	],
 	
 	binaryCodes: {
 		//
@@ -98,41 +93,95 @@ Modlite_compiler.lex = (stringin) => {
 	function read_next(char) {
 
 		// default with the regular expression /[a-zA-Z\_]/ ("a" to "z" || "A" to "Z" || "_")
-		if (char.match(Modlite_compiler.identifierStart)) {
-			handle_identifier()
+		if (char.match(/[a-zA-Z\_]/)) {
+			back_char()
+			const name = read_while((char) => {return char.match(/[a-zA-Z0-9\_]/)})
+			push_token("word", name)
 		}
 
-		else if (char.match(Modlite_compiler.openString)) {
+		else if (char.match(/[\"\'\`]/)) {
 			// startLine is only for the unexpected EOF (unexpected end of file) error
 			const startLine = context.lineNumber
-			handle_string(char)
-			// if the lex ended with a string still active (probably because they forgot to end it) fail the lex
+			const openingChar = char
+			let escaped = false
+			function loop() {
+				let past = ""
+				while (true) {
+					const loop_char = next_char()
+					// if the character does not exist end right now
+					if (!loop_char) {
+						back_char()
+						return past
+					}
+					if (loop_char == "\\") {
+						if (escaped == true) {
+							past += loop_char
+							escaped = false
+						} else {
+							escaped = true
+						}
+					} else {
+						if (!escaped && loop_char == openingChar) {
+							back_char()
+							return past
+						}
+						if (escaped) {
+							if (loop_char == "n") {
+								past += "\n"
+							} else if (loop_char == "t") {
+								past += "\t"
+							}
+						} else {
+							past += loop_char
+						}
+						escaped = false
+					}
+				}
+			}
+			push_token("string", loop())
+			// eat the ending character
+			context.i++
+			context.column++
+			// if the lex ended with a string still active (probably because the programmer forgot to end it) fail the lex
 			if (!Modlite_compiler.string[context.i]) err(`unexpected EOF a string that started at line ${startLine} never ended`)
 		}
 
-		// if number
 		else if (char.match(/[0-9]/)) {
-			handle_number()
-		}
-
-		else if (char.match(Modlite_compiler.punctuation)) {
-			handle_punctuation()
+			back_char()
+			push_token("number", Number(read_while((in_char) => {return in_char.match(/[0-9\.]/)})))
 		}
 
 		// if both characters are a slash that means a comment is happening
 		else if (char == "/" && Modlite_compiler.string[context.i] == "/") {
-			handle_comment()
+			read_while((char) => {return char != "\n"})
 		}
 
 		/*
 			for multiline comments like this
 		*/
 		else if (char == "/" && Modlite_compiler.string[context.i] == "*") {
-			handle_multiline_comment()
+			read_while((char) => {
+				return !(char == "*" && Modlite_compiler.string[context.i] == "/")
+			})
+			// eat the "*" and the "/"
+			next_char()
+			next_char()
 		}
 
-		else if (char.match(Modlite_compiler.operator)) {
-			handle_operator()
+		else if (char.match(/[\(\)\{\}\:]/)) {
+			push_token("separator", char)
+		}
+
+		else if (char.match(/[\+\-\*\/\=\<\>\.\!]/)) {
+			const next = next_char()
+			if (char == "=" && next == "=") {
+				push_token("operator", "==")
+			} else if (char == "." && next == ".") {
+				push_token("operator", "..")
+			} else {
+				back_char()
+				push_token("operator", char)
+			}
 		}
 
 		// if it is not a known character throw an error
@@ -181,83 +230,6 @@ Modlite_compiler.lex = (stringin) => {
 		}
 	}
 
-	function handle_identifier() {
-		back_char()
-		const name = read_while((char) => {return char.match(Modlite_compiler.identifierNotEnd)})
-		push_token("word", name)
-	}
-
-	function handle_string(openingChar) {
-		let escaped = false
-		function loop() {
-			let past = ""
-			while (true) {
-				const char = next_char()
-				// if the character does not exist end right now
-				if (!char) {
-					back_char()
-					return past
-				}
-				if (char == "\\") {
-					if (escaped == true) {
-						past += char
-						escaped = false
-					} else {
-						escaped = true
-					}
-				} else {
-					if (!escaped && char == openingChar) {
-						back_char()
-						return past
-					}
-					if (escaped) {
-						if (char == "n") {
-							past += "\n"
-						} else if (char == "t") {
-							past += "\t"
-						}
-					} else {
-						past += char
-					}
-					escaped = false
-				}
-			}
-		}
-		push_token("string", loop())
-		// eat the "
-		context.i++
-		context.column++
-	}
-
-	function handle_number() {
-		back_char()
-		push_token("number", Number(read_while((char) => {return char.match(/[0-9\.]/)})))
-	}
-
-	function handle_punctuation() {
-		back_char()
-		const char = next_char()
-		push_token("punctuation", char)
-	}
-
-	function handle_comment() {
-		read_while((char) => {return char != "\n"})
-	}
-
-	function handle_multiline_comment() {
-		read_while((char) => {
-			return !(char == "*" && Modlite_compiler.string[context.i] == "/")
-		})
-		// eat the "*" and the "/"
-		next_char()
-		next_char()
-	}
-
-	function handle_operator() {
-		back_char()
-		push_token("operator", next_char())
-	}
-
 	function err(msg) {
 		Modlite_compiler.handle_error(msg, context.lineNumber)
 		throw "[lexar error]";
@@ -268,11 +240,204 @@ Modlite_compiler.lex = (stringin) => {
 
 Modlite_compiler.parse = (context, tokens, inExpression) => {
 	context.level++
-	let exit = false
 	let build = []
-	while (context.i < tokens.length && !exit) {
+
+	while (context.i < tokens.length) {
 		const token = next_token()
-		handle_token(token)
+
+		// console.log(`${context.i}/${tokens.length} in loop, looking at token ${token.type}:`, token)
+
+		if (token.type == "word") {
+
+			// console.log("word", token)
+
+			if (token.value == "true") {
+				push_to_build({
+					type: "bool",
+					value: true,
+				})
+			} else if (token.value == "false") {
+				push_to_build({
+					type: "bool",
+					value: false,
+				})
+			} else if (token.value == "null") {
+				push_to_build({
+					type: "null",
+				})
+			} else if (token.value == "public") {
+				const next = next_token()
+				if (next.type != "word") err("unexpected 'public' keyword")
+				if (next.value == "function") {
+					parse_function(next, true)
+				} else if (next.value == "var") {
+					parse_var(next, true)
+				} else {
+					err("unexpected 'public' keyword")
+				}
+			} else if (token.value == "function") {
+				parse_function(token, false)
+			} else if (token.value == "var") {
+				parse_var(token, false)
+			} else if (token.value == "import") {
+				parse_import()
+			} else if (token.value == "if") {
+				parse_if()
+			} else if (token.value == "switch") {
+				parse_switch()
+			} else if (token.value == "while") {
+				parse_while()
+			} else {
+				push_to_build({
+					type: "var",
+					value: token.value,
+				})
+			}
+		}
+
+		else if (token.type == "separator") {
+
+			// console.log("separator", token)
+
+			if (token.value == "(") {
+				const past = build.pop()
+	
+				if (!past) err("unexpected (")
+	
+				if (past.type == "var" && past.value == "case") {
+					const condition = Modlite_compiler.parse(context, tokens, false)
+					next_token()
+					const statement = Modlite_compiler.parse(context, tokens, false)
+	
+					push_to_build({
+						type: "case",
+						condition: condition,
+						statement: statement
+					})
+				} else {
+					push_to_build({
+						type: "call",
+						name: past.value,
+						args: Modlite_compiler.parse(context, tokens, false),
+					})
+				}
+			} else if (token.value == ")") {
+				return build
+			} else if (token.value == "{") {
+				err("unexpected {")
+			} else if (token.value == "}") {
+				return build
+			} else if (token.value == ".") {
+				err("not available "+token.value)
+				// const next = next_token()
+				// if (next.type == "separator" && next.value == ".") {
+				// 	push_to_build({
+				// 		type: "join",
+				// 		left: [build.pop()],
+				// 		right: [Modlite_compiler.parse(context, tokens, true)[0]],
+				// 	})
+				// } else {
+				// 	// undo the next_token()
+				// 	back_token()
+				// 	push_to_build({
+				// 		type: "method",
+				// 		value: next_token().value,
+				// 	})
+				// }
+			} else if (token.value == "!") {
+				err("not available "+token.value)
+				// const next = next_token()
+				// if (next.type == "separator" && next.value == "(") {
+				// 	push_to_build({
+				// 		type: "assert",
+				// 		value: next_token().value,
+				// 	})
+				// } else if (next.type == "operator" && next.value == "=") {
+				// 	const past = build.pop()
+	
+				// 	if (!past) err("unexpected '!'")
+	
+				// 	push_to_build({
+				// 		type: "notEquivalent",
+				// 		left: [past],
+				// 		right: [Modlite_compiler.parse(context, tokens, true)[0]],
+				// 	})
+				// } else {
+				// 	push_to_build({
+				// 		type: "assert",
+				// 		value: next.value,
+				// 	})
+				// }
+			}
+		}
+
+		else if (token.type == "operator") {
+
+			// console.log("operator", token)
+
+			const prior = build.pop()
+
+			if (prior == undefined) err(token.value + " without left side")
+
+			if (token.value == "+" || token.value == "-" || token.value == "*" || token.value == "/") {
+				push_to_build({
+					type: "operation",
+					value: token.value,
+					left: [prior],
+					right: [Modlite_compiler.parse(context, tokens, true)[0]],
+				})
+			} else if (token.value == "=") {
+				push_to_build({
+					type: "assignment",
+					left: [prior],
+					right: [Modlite_compiler.parse(context, tokens, true)[0]],
+				})
+			} else if (token.value == "==") {
+				const parse = Modlite_compiler.parse(context, tokens, true)
+				push_to_build({
+					type: "equivalent",
+					left: [prior],
+					right: [parse[0]],
+				})
+			} else if (token.value == "..") {
+				const parse = Modlite_compiler.parse(context, tokens, true)
+				push_to_build({
+					type: "join",
+					left: [prior],
+					right: [parse[0]],
+				})
+			}
+		}
+
+		else if (token.type == "string") {
+
+			// console.log("string", token)
+
+			push_to_build({
+				type: "string",
+				value: token.value,
+			})
+		}
+
+		else if (token.type == "number") {
+
+			// console.log("number", token)
+
+			push_to_build({
+				type: "number",
+				value: token.value,
+			})
+		}
+
+		if (inExpression) {
+			if (tokens[context.i]) {
+				return build
+			}
+			if (token.type != "operator" && tokens[context.i].type != "operator") {
+				// console.log("exiting expression")
+				return build
+			}
+		}
 	}
 
 	function get_token(int) {
@@ -284,6 +449,7 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 	// get the next token and increment context.i
 	function next_token() {
 		const token = tokens[context.i++];
+		// console.log("next_token", token)
 		return token
 	}
 
@@ -309,203 +475,6 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 		build.push(obj)
 	}
 
-	function handle_token(token) {
-
-		if (inExpression) {
-			// if (context.i >= tokens.length)
-			if (!tokens[context.i] || (token.type != "operator" && tokens[context.i].type != "operator")) {
-				exit = true
-			}
-		}
-
-		if (token.type == "word") {
-			handle_word(token)
-		}
-
-		else if (token.type == "string") {
-			handle_string(token)
-		}
-
-		else if (token.type == "number") {
-			handle_number(token)
-		}
-
-		else if (token.type == "operator") {
-			handle_operator(token)
-		}
-
-		else if (token.type == "punctuation") {
-			handle_punctuation(token)
-		}
-	}
-
-	function handle_word(token) {
-		// if it is true or false make a bool
-		if (token.value == "true") {
-			push_to_build({
-				type: "bool",
-				value: true,
-			})
-		} else if (token.value == "false") {
-			push_to_build({
-				type: "bool",
-				value: false,
-			})
-		} else if (token.value == "null") {
-			push_to_build({
-				type: "null",
-			})
-		} else if (token.value == "public") {
-			const next = next_token()
-			if (next.type != "word") err("unexpected 'public' keyword")
-			if (next.value == "function") {
-				parse_function(next, true)
-			} else if (next.value == "var") {
-				parse_var(next, true)
-			} else {
-				err("unexpected 'public' keyword")
-			}
-		} else if (token.value == "function") {
-			parse_function(token, false)
-		} else if (token.value == "var") {
-			parse_var(token, false)
-		} else if (token.value == "import") {
-			parse_import()
-		} else if (token.value == "if") {
-			parse_if()
-		} else if (token.value == "switch") {
-			parse_switch()
-		} else if (token.value == "while") {
-			parse_while()
-		} else {
-			push_to_build({
-				type: "var",
-				value: token.value,
-			})
-		}
-	}
-
-	function handle_string(token) {
-		push_to_build({
-			type: "string",
-			value: token.value,
-		})
-	}
-
-	function handle_number(token) {
-		push_to_build({
-			type: "number",
-			value: token.value,
-		})
-	}
-
-	function handle_operator(token) {
-		const prior = build.pop()
-
-		if (prior == undefined) err(token.value + " without left side")
-
-		if (token.value == "+" || token.value == "-" || token.value == "*" || token.value == "/") {
-			push_to_build({
-				type: "operation",
-				value: token.value,
-				left: [prior],
-				right: [Modlite_compiler.parse(context, tokens, true)[0]],
-			})
-			// TODO: fix this
-			// back_token()
-		} else if (token.value == "=") {
-			const next = next_token()
-			if (next.type == "operator" && next.value == "=") {
-				push_to_build({
-					type: "equivalent",
-					left: [prior],
-					right: [Modlite_compiler.parse(context, tokens, true)[0]],
-				})
-			} else {
-				// undo the next_token()
-				back_token()
-				push_to_build({
-					type: "assignment",
-					left: [prior],
-					right: [Modlite_compiler.parse(context, tokens, true)[0]],
-				})
-			}
-		}
-	}
-
-	function handle_punctuation(token) {
-		if (token.value == "(") {
-			const past = build.pop()
-
-			if (!past) err("unexpected (")
-
-			if (past.type == "var" && past.value == "case") {
-				const condition = Modlite_compiler.parse(context, tokens, false)
-				next_token()
-				const statement = Modlite_compiler.parse(context, tokens, false)
-
-				push_to_build({
-					type: "case",
-					condition: condition,
-					statement: statement
-				})
-			} else {
-				push_to_build({
-					type: "call",
-					name: past.value,
-					args: Modlite_compiler.parse(context, tokens, false),
-				})
-			}
-		} else if (token.value == ")") {
-			exit = true
-			return
-		} else if (token.value == "{") {
-			err("unexpected {")
-		} else if (token.value == "}") {
-			exit = true
-			return
-		} else if (token.value == ".") {
-			const next = next_token()
-			if (next.type == "punctuation" && next.value == ".") {
-				push_to_build({
-					type: "join",
-					left: [build.pop()],
-					right: [Modlite_compiler.parse(context, tokens, true)[0]],
-				})
-			} else {
-				// undo the next_token()
-				back_token()
-				push_to_build({
-					type: "method",
-					value: next_token().value,
-				})
-			}
-		} else if (token.value == "!") {
-			const next = next_token()
-			if (next.type == "punctuation" && next.value == "(") {
-				push_to_build({
-					type: "assert",
-					value: next_token().value,
-				})
-			} else if (next.type == "operator" && next.value == "=") {
-				const past = build.pop()
-
-				if (!past) err("unexpected '!'")
-
-				push_to_build({
-					type: "notEquivalent",
-					left: [past],
-					right: [Modlite_compiler.parse(context, tokens, true)[0]],
-				})
-			} else {
-				push_to_build({
-					type: "assert",
-					value: next.value,
-				})
-			}
-		}
-	}
-
 	function parse_function(token, isPublic) {
 		const name = next_token()
 
@@ -515,12 +484,12 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 		next_token()
 		// read until the ")"
 		const argument_tokens = read_until((token) => {
-			return token.type == "punctuation" && token.value == ")"
+			return token.type == "separator" && token.value == ")"
 		})
 
 		for (let index = 0; index < argument_tokens.length; index++) {
 			const argument_token = argument_tokens[index];
-			if (argument_token.type == "punctuation" && argument_token.value == ":") {
+			if (argument_token.type == "separator" && argument_token.value == ":") {
 				args.push({
 					name: argument_tokens[index-1].value,
 					type: argument_tokens[index+1].value,
@@ -1001,6 +970,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			}
 
 			else if (thing.type == "definition") {
+				if (Modlite_compiler.reservedWords.includes(thing.name)) err(`${thing.name} is a reserved word`)
 				if (level == 0) {
 					variables[level][thing.name] = {
 						type: thing.variableType,
@@ -1055,6 +1025,8 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			}
 			
 			else if (thing.type == "call") {
+				if (Modlite_compiler.reservedWords.includes(thing.name)) err(`${thing.name} is a reserved word`)
+				
 				const variable = getVariable(thing.name)
 
 				if (!variable) err(`(call) variable ${thing.name} does not exist`)
