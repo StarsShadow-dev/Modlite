@@ -1,4 +1,4 @@
-import { print startsWith } from "../../StandardLibrary.json"
+import { print startsWith } from "StandardLibrary.json"
 import { createInput } from "../node.json"
 
 function main() void {
@@ -27,6 +27,22 @@ function onInput(line:string) void {
 			print("│          │")
 			print("│          │")
 			print("└──────────┘")
+		}
+		case (line == "very big box") {
+			print("┌────────────────────┐")
+			print("│                    │")
+			print("│                    │")
+			print("│                    │")
+			print("│                    │")
+			print("│                    │")
+			print("│                    │")
+			print("│                    │")
+			print("│                    │")
+			print("│                    │")
+			print("└────────────────────┘")
+		}
+		case (line == "gone box") {
+			print("")
 		}
 		case (line == "long") {
 			print("long")
