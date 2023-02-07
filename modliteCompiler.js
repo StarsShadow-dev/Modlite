@@ -771,7 +771,7 @@ Modlite_compiler.assemblyToOperationCode = (assembly) => {
 // --------
 
 import fs from "fs"
-import { join } from "path"
+import { join, dirname } from "path"
 
 const rootPath = process.argv[2]
 
@@ -917,7 +917,13 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 					}
 					const text = fs.readFileSync(join(context.rootPath, thing.path), "utf8")
 				} else if (thing.path.endsWith(".json")) {
-					const jsonString = fs.readFileSync(join(context.rootPath, thing.path), "utf8")
+					let jsonString
+
+					if (thing.path == "StandardLibrary.json") {
+						jsonString = fs.readFileSync(join(dirname(process.argv[1]), "StandardLibrary.json"), "utf8")
+					} else {
+						jsonString = fs.readFileSync(join(context.rootPath, thing.path), "utf8")
+					}
 	
 					const json = JSON.parse(jsonString)
 	

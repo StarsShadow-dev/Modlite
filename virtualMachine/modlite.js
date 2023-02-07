@@ -58,7 +58,7 @@ const binaryCodes = {
 }
 
 class ModliteRunTime {
-	// add the Modlite standard library this includes functions like print, error and startsWith
+	// add the MLSL (Modlite standard library) this includes functions like print, error and startsWith
 	exposedFunctions = {
 		["MLSL:print"]: () => {
 			console.log(this.stack.pop())
@@ -71,7 +71,6 @@ class ModliteRunTime {
 			console.error("globals", this.globals, "\n")
 			console.error("program ending early\n")
 	
-			this.index = this.binary.length
 			this.reset()
 		},
 		["MLSL:startsWith"]: () => {
@@ -266,7 +265,7 @@ class ModliteRunTime {
 			}
 			
 			else {
-				throw "unexpected character: " + char + " at " + this.index
+				throw `unexpected character: '${char}'(${charToBaseTen(char)}) at ${this.index}`
 			}
 
 			this.index++
