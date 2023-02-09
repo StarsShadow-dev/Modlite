@@ -12,7 +12,7 @@ It consists of two parts:
 
 **And the runTime** That runs an operation code.
 
-# Syntax
+# Syntax (incomplete)
 
 Start by creating a main function:
 
@@ -23,6 +23,21 @@ function main() void {
 ```
 
 This function is named `main` and takes no arguments ( `()` ) and returns nothing (`void`).
+
+Functions can also be made public:
+
+```modlite
+// in test.modlite
+public function publicTest() void {
+	
+}
+```
+
+Public functions can be imported by another modlite file with:
+
+```modlite
+import { publicTest } from "test.modlite"
+```
 
 # RunTime
 
