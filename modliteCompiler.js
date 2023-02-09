@@ -783,6 +783,8 @@ const testBuild = process.argv.includes("--test")
 
 const debugBuild = process.argv.includes("--debug")
 
+if (logEverything) console.log("process.argv", process.argv)
+
 Modlite_compiler.compileCode = (rootPath) => {
 	const jsonString = fs.readFileSync(join(rootPath, "conf.json"), "utf8")
 
@@ -915,15 +917,8 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 	
 						variables[0][importName] = files[thing.path][importName]
 					}
-					const text = fs.readFileSync(join(context.rootPath, thing.path), "utf8")
 				} else if (thing.path.endsWith(".json")) {
-					let jsonString
-
-					if (thing.path == "StandardLibrary.json") {
-						jsonString = fs.readFileSync(join(dirname(process.argv[1]), "StandardLibrary.json"), "utf8")
-					} else {
-						jsonString = fs.readFileSync(join(context.rootPath, thing.path), "utf8")
-					}
+					let jsonString = fs.readFileSync(join(context.rootPath, thing.path), "utf8")
 	
 					const json = JSON.parse(jsonString)
 	
@@ -937,7 +932,24 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 						variables[0][importName] = json[importName]
 					}
 				} else {
-					err(`${thing.path} is not a valid file extension`)
+					if (thing.path == "StandardLibrary") {
+						let jsonString = fs.readFileSync(join(dirname(process.argv[1]), thing.path+".json"), "utf8")
+		
+						const json = JSON.parse(jsonString)
+		
+						for (let i = 0; i < thing.imports.length; i++) {
+							const importName = thing.imports[i];
+							
+							if (!json[importName]) err(`import ${importName} from json file ${thing.path} not found`)
+		
+							if (variables[0][importName]) err(`Import with name ${importName} failed. Because a variable named ${importName} already exists.`)
+		
+							variables[0][importName] = json[importName]
+						}
+					} else {
+						err(`'${thing.path}' does not have a valid file extension`)
+					}
+
 				}
 			}
 		}

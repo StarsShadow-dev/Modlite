@@ -1,4 +1,4 @@
-import { print } from "StandardLibrary.json"
+import { print } from "StandardLibrary"
 
 function main() void {
 	print("Hello, World")

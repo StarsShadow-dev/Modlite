@@ -1,4 +1,4 @@
-import { error } from "StandardLibrary.json"
+import { error } from "StandardLibrary"
 
 var global string
 

@@ -45,7 +45,7 @@ The RunTime is designed to be very fast and simple to run.
 
 ## JavaScript
 
-Import `./virtualMachine/modlite.js` and run:
+Import `virtualMachine/modlite.js` and run:
 ```JavaScript
 const runTime = new ModliteRunTime()
 ```
