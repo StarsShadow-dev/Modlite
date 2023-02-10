@@ -20,6 +20,7 @@ const Modlite_compiler = {
 		"while",
 		"true",
 		"false",
+		"as",
 	],
 	
 	binaryCodes: {
@@ -562,7 +563,16 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 		for (let index = 0; index < parse.length; index++) {
 			const thing = parse[index];
 			if (thing.type != "var") err("only words are allowed inside of an import statement")
-			imports.push(thing.value)
+
+			const next = parse[index+1]
+			if (thing.type != "var") err("only words are allowed inside of an import statement")
+
+			if (next && next.value == "as") {
+				index += 2
+				imports.push([thing.value, parse[index].value])
+			} else {
+				imports.push([thing.value, thing.value])
+			}
 		}
 
 		push_to_build({
@@ -907,15 +917,16 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 						Modlite_compiler.getAssembly(thing.path, context, files, false)
 					}
 					for (let i = 0; i < thing.imports.length; i++) {
-						const importName = thing.imports[i];
+						const importName = thing.imports[i][0];
+						const newName = thing.imports[i][1];
 	
 						if (!files[thing.path][importName]) err(`import ${importName} from modlite file ${thing.path} not found`)
 
 						if (!files[thing.path][importName].public) err(`import ${importName} from modlite file ${thing.path} is not public`)
 
-						if (variables[0][importName]) err(`Import with name ${importName} failed. Because a variable named ${importName} already exists.`)
+						if (variables[0][newName]) err(`Import with name ${newName} failed. Because a variable named ${newName} already exists.`)
 	
-						variables[0][importName] = files[thing.path][importName]
+						variables[0][newName] = files[thing.path][importName]
 					}
 				} else if (thing.path.endsWith(".json")) {
 					let jsonString = fs.readFileSync(join(context.rootPath, thing.path), "utf8")
@@ -923,13 +934,14 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 					const json = JSON.parse(jsonString)
 	
 					for (let i = 0; i < thing.imports.length; i++) {
-						const importName = thing.imports[i];
+						const importName = thing.imports[i][0];
+						const newName = thing.imports[i][1];
 						
 						if (!json[importName]) err(`import ${importName} from json file ${thing.path} not found`)
 	
-						if (variables[0][importName]) err(`Import with name ${importName} failed. Because a variable named ${importName} already exists.`)
+						if (variables[0][newName]) err(`Import with name ${newName} failed. Because a variable named ${newName} already exists.`)
 	
-						variables[0][importName] = json[importName]
+						variables[0][newName] = json[importName]
 					}
 				} else {
 					if (thing.path == "StandardLibrary") {
@@ -938,13 +950,14 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 						const json = JSON.parse(jsonString)
 		
 						for (let i = 0; i < thing.imports.length; i++) {
-							const importName = thing.imports[i];
+							const importName = thing.imports[i][0];
+							const newName = thing.imports[i][1];
 							
 							if (!json[importName]) err(`import ${importName} from json file ${thing.path} not found`)
 		
-							if (variables[0][importName]) err(`Import with name ${importName} failed. Because a variable named ${importName} already exists.`)
+							if (variables[0][newName]) err(`Import with name ${newName} failed. Because a variable named ${newName} already exists.`)
 		
-							variables[0][importName] = json[importName]
+							variables[0][newName] = json[importName]
 						}
 					} else {
 						err(`'${thing.path}' does not have a valid file extension`)

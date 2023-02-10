@@ -1,8 +1,13 @@
-import { print } from "StandardLibrary"
+import {
+	print
+	print as putLineInConsole
+} from "StandardLibrary"
 
 public var globalVariable string
 
 public function test() void {
+	putLineInConsole("putLineInConsole test")
+
 	globalVariable = "testing2"
 	print("globalVariable in test: " .. globalVariable)
 }
