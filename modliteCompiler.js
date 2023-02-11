@@ -290,6 +290,8 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 				parse_switch()
 			} else if (token.value == "while") {
 				parse_while()
+			} else if (token.value == "return") {
+				parse_return()
 			} else {
 				push_to_build({
 					type: "var",
@@ -440,11 +442,10 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 		}
 
 		if (inExpression) {
-			if (tokens[context.i]) {
+			if (!tokens[context.i]) {
 				return build
 			}
 			if (token.type != "operator" && tokens[context.i].type != "operator") {
-				// console.log("exiting expression")
 				return build
 			}
 		}
@@ -525,13 +526,6 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 			lineNumber: token.lineNumber,
 		})
 	}
-
-	// function parse_return() {
-	// 	push_to_build({
-	// 		type: "return",
-	// 		value: next_token(),
-	// 	})
-	// }
 
 	function parse_var(token, isPublic) {
 		const name = next_token()
@@ -628,6 +622,15 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 		push_to_build({
 			type: "while",
 			condition: condition,
+			statement: statement
+		})
+	}
+
+	function parse_return() {
+		const statement = Modlite_compiler.parse(context, tokens, true)
+
+		push_to_build({
+			type: "return",
 			statement: statement
 		})
 	}
@@ -782,6 +785,7 @@ Modlite_compiler.assemblyToOperationCode = (assembly) => {
 
 import fs from "fs"
 import { join, dirname } from "path"
+import crypto from "crypto"
 
 const rootPath = process.argv[2]
 
@@ -810,7 +814,7 @@ Modlite_compiler.compileCode = (rootPath) => {
 	try {
 		let context = {
 			rootPath: rootPath,
-			globalCount: 0,
+			globalCount: 1,
 			uniqueIdentifierCounter: 0,
 			testCounter: 1,
 
@@ -890,6 +894,8 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			level++
 			if (!variables[level]) variables[level] = {}
 		}
+
+		const endId = crypto.randomUUID()
 
 		//
 		// pre loop
@@ -1088,8 +1094,12 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 					pushToAssembly(["@" + return_location])
 				}
 
-				// if the function returns something pop the return value off because it is not being used
-				if (variable.return != "void" && !expectValues) {
+				if (variable.type == "function" && variable.return != "void" && expectValues) {
+					pushToAssembly(["getGlobal", "0"])
+				}
+
+				// if the exposedFunction returns something pop the return value off because it is not being used
+				if (variable.type == "exposedFunction" && variable.return != "void" && !expectValues) {
 					pushToAssembly(["pop", "1"])
 				}
 			}
@@ -1201,6 +1211,14 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				pushToAssembly(["conditionalJump"])
 			}
 
+			else if (thing.type == "return") {
+				assemblyLoop(assembly, thing.statement, false, true)
+				pushToAssembly(["setGlobal", "0"])
+				// for now just jump to the end of the function
+				pushToAssembly(["push", "*end " + endId])
+				pushToAssembly(["jump"])
+			}
+
 			else if (thing.type == "case") {
 				err("unexpected case")
 			}
@@ -1208,6 +1226,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 		if (newScope) {
 			if (level != 0) {
+				pushToAssembly(["@" + "end " + endId])
 				pushToAssembly(["removeRegisters", String(getRegisterRequirement())])
 			}
 

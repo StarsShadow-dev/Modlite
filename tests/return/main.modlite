@@ -1,0 +1,9 @@
+import { print } from "StandardLibrary"
+
+function main() void {
+	print(returnTest())
+}
+
+function returnTest() string {
+	return "Hello," .. " World" .. " test"
+}
