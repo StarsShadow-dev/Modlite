@@ -100,6 +100,25 @@ Modlite_compiler.lex = (stringin) => {
 			push_token("word", name)
 		}
 
+		else if (char == "@") {
+			const name = read_while((char) => {
+				return char != " " && char != "\n" && char != "<"
+			})
+
+			const newChar = next_char()
+
+			if (newChar == "<") {
+				const args = read_while((char) => {
+					return char != ">"
+				}).split(" ")
+				next_char()
+
+				push_token("compilerSetting", [name, args])
+			} else {
+				push_token("compilerSetting", [name, []])
+			}
+		}
+
 		else if (char.match(/[\"\'\`]/)) {
 			// startLine is only for the unexpected EOF (unexpected end of file) error
 			const startLine = context.lineNumber
@@ -300,6 +319,20 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 			}
 		}
 
+		else if (token.type == "compilerSetting") {
+			if (token.value[0] == "end") {
+				return build
+			}
+			const parse = Modlite_compiler.parse(context, tokens, false)
+
+			push_to_build({
+				type: "compilerSetting",
+				name: token.value[0],
+				args: token.value[1],
+				build: parse,
+			})
+		}
+
 		else if (token.type == "separator") {
 
 			// console.log("separator", token)
@@ -442,12 +475,24 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 		}
 
 		if (inExpression) {
-			if (!tokens[context.i]) {
-				return build
+			// console.log("inExpression end?", tokens[context.i-1], tokens[context.i])
+
+			// mess
+			if (tokens[context.i] && tokens[context.i].type == "separator" && tokens[context.i].value == "(") {
+				// do nothing
+			} else {
+				if (!tokens[context.i]) {
+					// console.log("end1")
+					return build
+				}
+
+				if (tokens[context.i-1].type != "operator" && tokens[context.i].type != "operator") {
+					// console.log("end2")
+					return build
+				}
 			}
-			if (token.type != "operator" && tokens[context.i].type != "operator") {
-				return build
-			}
+
+			// console.log("continue")
 		}
 	}
 
@@ -870,7 +915,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 	if (logEverything) console.log("tokens:\n" + JSON.stringify(tokens, null) + "\n")
 
 	const build_in = Modlite_compiler.parse({ lineNumber: 1, level: -1, i: 0 }, tokens, false)
-	if (logEverything) console.log("build:\n" + JSON.stringify(build_in, null) + "\n")
+	if (logEverything) console.log("build:\n" + JSON.stringify(build_in, null, 2) + "\n")
 
 	let level = -1
 	let lineNumber = 0
@@ -1221,6 +1266,14 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 			else if (thing.type == "case") {
 				err("unexpected case")
+			}
+
+			else if (thing.type == "compilerSetting") {
+				if (thing.name == "duplicate") {
+					for (let index = 0; index < thing.args[0]; index++) {
+						assemblyLoop(assembly, thing.build, false, true)
+					}
+				}
 			}
 		}
 
