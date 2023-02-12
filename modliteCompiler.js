@@ -932,9 +932,9 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 		// if (!main && thing.type == "definition") err("global definitions must be in top level of the main file")
 	}
 
-	assemblyLoop(context.mainAssembly, build_in, true, false)
+	assemblyLoop(context.mainAssembly, build_in, true, false, debugBuild)
 
-	function assemblyLoop(assembly, build, newScope, expectValues) {
+	function assemblyLoop(assembly, build, newScope, expectValues, debug) {
 		if (newScope) {
 			level++
 			if (!variables[level]) variables[level] = {}
@@ -1043,7 +1043,10 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				}
 
 				pushToAssembly([`@${variable.ID}`])
-				assemblyLoop(assembly, thing.value, true, false)
+				if (debug) {
+					debugLog(`in function ${thing.name} ID: ${variable.ID} (${thing.lineNumber})`)
+				}
+				assemblyLoop(assembly, thing.value, true, false, debug)
 				if (variables[0][thing.name].args.length > 0) pushToAssembly(["pop", String(variables[0][thing.name].args.length)])
 				pushToAssembly(["jump"])
 			}
@@ -1085,7 +1088,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				const variable = getVariable(thing.left[0].value)
 				if (!variable) err(`variable ${thing.left[0].value} does not exist`)
 
-				assemblyLoop(assembly, thing.right, false, true)
+				assemblyLoop(assembly, thing.right, false, true, debug)
 				if (variable.global) {
 					pushToAssembly(["setGlobal", String(variable.index)])
 				} else {
@@ -1126,14 +1129,18 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 				checkArguments(thing.name, thing.args, variable.args)
 
+				if (debug) {
+					debugLog(`call ${variable.type} ID: ${variable.ID} (${thing.lineNumber})`)
+				}
+
 				if (variable.type == "exposedFunction") {
-					assemblyLoop(assembly, thing.args, false, true)
+					assemblyLoop(assembly, thing.args, false, true, debug)
 					pushToAssembly(["push", variable.ID])
 					pushToAssembly(["externalJump"])
 				} else {
 					const return_location = "return_location" + context.uniqueIdentifierCounter++
 					pushToAssembly(["push", "*" + return_location])
-					assemblyLoop(assembly, thing.args, false, true)
+					assemblyLoop(assembly, thing.args, false, true, debug)
 					pushToAssembly(["push", "*" + variable.ID])
 					pushToAssembly(["jump"])
 					pushToAssembly(["@" + return_location])
@@ -1150,8 +1157,8 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			}
 
 			else if (thing.type == "operation") {
-				assemblyLoop(assembly, thing.left, false, true)
-				assemblyLoop(assembly, thing.right, false, true)
+				assemblyLoop(assembly, thing.left, false, true, debug)
+				assemblyLoop(assembly, thing.right, false, true, debug)
 				if (thing.value == "+") {
 					pushToAssembly(["add"])
 				} else if (thing.value == "-") {
@@ -1165,31 +1172,31 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 
 			else if (thing.type == "equivalent") {
-				assemblyLoop(assembly, thing.left, false, true)
-				assemblyLoop(assembly, thing.right, false, true)
+				assemblyLoop(assembly, thing.left, false, true, debug)
+				assemblyLoop(assembly, thing.right, false, true, debug)
 				pushToAssembly(["equivalent"])
 			}
 
 			else if (thing.type == "notEquivalent") {
-				assemblyLoop(assembly, thing.left, false, true)
-				assemblyLoop(assembly, thing.right, false, true)
+				assemblyLoop(assembly, thing.left, false, true, debug)
+				assemblyLoop(assembly, thing.right, false, true, debug)
 				pushToAssembly(["equivalent"])
 				pushToAssembly(["not"])
 			}
 
 			else if (thing.type == "join") {
-				assemblyLoop(assembly, thing.left, false, true)
-				assemblyLoop(assembly, thing.right, false, true)
+				assemblyLoop(assembly, thing.left, false, true, debug)
+				assemblyLoop(assembly, thing.right, false, true, debug)
 				pushToAssembly(["join"])
 			}
 
 			else if (thing.type == "if") {
 				const if_jump = "if_jump" + context.uniqueIdentifierCounter++
 
-				assemblyLoop(assembly, thing.condition, false, true)
+				assemblyLoop(assembly, thing.condition, false, true, debug)
 				pushToAssembly(["push", "*" + if_jump])
 				pushToAssembly(["notConditionalJump"])
-				assemblyLoop(assembly, thing.trueStatement, false, false)
+				assemblyLoop(assembly, thing.trueStatement, false, false, debug)
 				pushToAssembly(["@" + if_jump])
 			}
 
@@ -1197,16 +1204,16 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				const if_else_true = "if_else_true" + context.uniqueIdentifierCounter++
 				const if_else_end = "if_else_end" + context.uniqueIdentifierCounter++
 
-				assemblyLoop(assembly, thing.condition, false, true)
+				assemblyLoop(assembly, thing.condition, false, true, debug)
 				pushToAssembly(["push", "*" + if_else_true])
 				pushToAssembly(["conditionalJump"])
 
-				assemblyLoop(assembly, thing.falseStatement, false, false)
+				assemblyLoop(assembly, thing.falseStatement, false, false, debug)
 				pushToAssembly(["push", "*" + if_else_end])
 				pushToAssembly(["jump"])
 
 				pushToAssembly(["@" + if_else_true])
-				assemblyLoop(assembly, thing.trueStatement, false, false)
+				assemblyLoop(assembly, thing.trueStatement, false, false, debug)
 
 				pushToAssembly(["@" + if_else_end])
 			}
@@ -1222,12 +1229,12 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 					const switch_over = "switch_over" + index + " " + context.uniqueIdentifierCounter++
 
-					assemblyLoop(assembly, Case.condition, false, true)
+					assemblyLoop(assembly, Case.condition, false, true, debug)
 
 					pushToAssembly(["push", "*" + switch_over])
 					pushToAssembly(["notConditionalJump"])
 
-					assemblyLoop(assembly, Case.statement, false, true)
+					assemblyLoop(assembly, Case.statement, false, true, debug)
 
 					pushToAssembly(["push", "*" + switch_end])
 					pushToAssembly(["jump"])
@@ -1247,17 +1254,17 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 
 				pushToAssembly(["@" + while_top])
-				assemblyLoop(assembly, thing.statement, false, true)
+				assemblyLoop(assembly, thing.statement, false, true, debug)
 
 
 				pushToAssembly(["@" + while_bottom])
-				assemblyLoop(assembly, thing.condition, false, true)
+				assemblyLoop(assembly, thing.condition, false, true, debug)
 				pushToAssembly(["push", "*" + while_top])
 				pushToAssembly(["conditionalJump"])
 			}
 
 			else if (thing.type == "return") {
-				assemblyLoop(assembly, thing.statement, false, true)
+				assemblyLoop(assembly, thing.statement, false, true, debug)
 				pushToAssembly(["setGlobal", "0"])
 				// for now just jump to the end of the function
 				pushToAssembly(["push", "*end " + endId])
@@ -1271,7 +1278,13 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			else if (thing.type == "compilerSetting") {
 				if (thing.name == "duplicate") {
 					for (let index = 0; index < thing.args[0]; index++) {
-						assemblyLoop(assembly, thing.build, false, true)
+						assemblyLoop(assembly, thing.build, false, true, debug)
+					}
+				} else if (thing.name == "debug") {
+					if (thing.args[0] == "true") {
+						assemblyLoop(assembly, thing.build, false, true, true)
+					} else if (thing.args[0] == "false") {
+						assemblyLoop(assembly, thing.build, false, true, false)
 					}
 				}
 			}
@@ -1289,6 +1302,12 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 		function pushToAssembly(data) {
 			assembly.push(...data, "\n")
+		}
+
+		function debugLog(msg) {
+			pushToAssembly(["push", "[debug] "+msg])
+			pushToAssembly(["push", "MLSL:print"])
+			pushToAssembly(["externalJump"])
 		}
 	}
 

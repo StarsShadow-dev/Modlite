@@ -1,0 +1,25 @@
+import { print } from "StandardLibrary"
+
+function main() void {
+	print("testing")
+
+	debug()
+}
+
+function debug() void {
+	@debug<true>
+	print("print1")
+	print("print2")
+	print("print3")
+
+	test()
+	@end
+}
+
+function test() void {
+	print("testing")
+
+	print("print1")
+	print("print2")
+	print("print3")
+}
