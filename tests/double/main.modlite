@@ -1,0 +1,20 @@
+import { print } from "StandardLibrary"
+
+var last string
+var string string
+
+function main() void {
+	last = 1
+	string = "1"
+
+@duplicate<50>
+	double()
+@end
+
+	print(string)
+}
+
+function double() void {
+	last = last + last
+	string = string .. " " .. last
+}
