@@ -21,7 +21,7 @@ function debug() void {
 function test() void {
 	print("testing")
 
-	print("print1")
-	print("print2")
-	print("print3")
+	print("test print1")
+	print("test print2")
+	print("test print3")
 }

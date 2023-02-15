@@ -1289,9 +1289,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 						assemblyLoop(assembly, thing.build, false, true, buildType)
 					}
 				} else if (thing.name == "debug") {
-					debugLog(`debug mode enabled (${thing.lineNumber})`)
 					assemblyLoop(assembly, thing.build, false, true, "debug")
-					debugLog(`debug mode disabled (${thing.lineNumber})`)
 				} else if (thing.name == "optimize") {
 					assemblyLoop(assembly, thing.build, false, true, "optimize")
 				}
