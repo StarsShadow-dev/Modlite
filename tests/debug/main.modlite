@@ -1,13 +1,15 @@
 import { print } from "StandardLibrary"
 
 function main() void {
-	print("testing")
+	print("in main")
 
 	debug()
+
+	print("back in main")
 }
 
 function debug() void {
-	@debug<true>
+	@debug
 	print("print1")
 	print("print2")
 	print("print3")
