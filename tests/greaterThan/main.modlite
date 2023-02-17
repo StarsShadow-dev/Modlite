@@ -1,0 +1,16 @@
+import { print } from "StandardLibrary"
+
+function main() void {
+	if (1 > 10) {
+		print("err")
+	}
+	if (1 < 10) {
+		print("pass")
+	}
+	if (1 < 1) {
+		print("err")
+	}
+	if (10 < 1) {
+		print("err")
+	}
+}

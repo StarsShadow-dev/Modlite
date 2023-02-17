@@ -35,5 +35,16 @@
 			}
 		],
 		"return": "bool"
+	},
+	"toNumber": {
+		"type": "exposedFunction",
+		"ID": "MLSL:toNumber",
+		"args": [
+			{
+				"name": "string",
+				"type": "string"
+			}
+		],
+		"return": "number"
 	}
 }

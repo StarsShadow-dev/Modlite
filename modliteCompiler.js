@@ -66,8 +66,9 @@ const Modlite_compiler = {
 		
 		// check to see if two values are equivalent
 		equivalent: "q",
+		greaterThan: "r",
 		// join to strings
-		join: "r",
+		join: "s",
 		// reverse a bool (true = false and false = true)
 		not: "z",
 		// break character
@@ -433,6 +434,13 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 					left: [prior],
 					right: [Modlite_compiler.parse(context, tokens, true)[0]],
 				})
+			} else if (token.value == "..") {
+				const parse = Modlite_compiler.parse(context, tokens, true)
+				push_to_build({
+					type: "join",
+					left: [prior],
+					right: [parse[0]],
+				})
 			} else if (token.value == "=") {
 				push_to_build({
 					type: "assignment",
@@ -453,10 +461,17 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 					left: [prior],
 					right: [parse[0]],
 				})
-			} else if (token.value == "..") {
+			} else if (token.value == ">") {
 				const parse = Modlite_compiler.parse(context, tokens, true)
 				push_to_build({
-					type: "join",
+					type: "greaterThan",
+					left: [prior],
+					right: [parse[0]],
+				})
+			} else if (token.value == "<") {
+				const parse = Modlite_compiler.parse(context, tokens, true)
+				push_to_build({
+					type: "lessThan",
 					left: [prior],
 					right: [parse[0]],
 				})
@@ -638,7 +653,7 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 
 		const elseWord = next_token()
 
-		if (elseWord.type == "word" && elseWord.value == "else") {
+		if (elseWord && elseWord.type == "word" && elseWord.value == "else") {
 			next_token()
 			const falseStatement = Modlite_compiler.parse(context, tokens, false)
 			push_to_build({
@@ -681,7 +696,14 @@ Modlite_compiler.parse = (context, tokens, inExpression) => {
 	}
 
 	function parse_return() {
-		const statement = Modlite_compiler.parse(context, tokens, true)
+
+		let statement = Modlite_compiler.parse(context, tokens, true)
+
+		if (statement.length == 0) err("empty return")
+
+		if (statement[0] && statement[0].type == "var" && statement[0].value == "void") {
+			statement = []
+		}
 
 		push_to_build({
 			type: "return",
@@ -786,6 +808,8 @@ Modlite_compiler.assemblyToOperationCode = (assembly) => {
 			opCode += Modlite_compiler.binaryCodes.divide
 		} else if (instruction == "equivalent") {
 			opCode += Modlite_compiler.binaryCodes.equivalent
+		} else if (instruction == "greaterThan") {
+			opCode += Modlite_compiler.binaryCodes.greaterThan
 		} else if (instruction == "join") {
 			opCode += Modlite_compiler.binaryCodes.join
 		} else if (instruction == "not") {
@@ -872,6 +896,8 @@ Modlite_compiler.compileCode = (rootPath) => {
 			uniqueIdentifierCounter: 0,
 			testCounter: 1,
 
+			functionId: undefined,
+
 			startAssembly: [
 				"push", "*" + conf.entry + " main", "\n",
 				"jump", "\n",
@@ -941,8 +967,6 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 		if (thing.lineNumber) lineNumber = thing.lineNumber
 
 		if (thing.type != "function" && thing.type != "import" && thing.type != "definition" && thing.type != "test") err("not a function or import or definition or test at top level")
-
-		// if (!main && thing.type == "definition") err("global definitions must be in top level of the main file")
 	}
 
 	assemblyLoop(context.mainAssembly, build_in, true, false, "normal")
@@ -952,8 +976,6 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			level++
 			if (!variables[level]) variables[level] = {}
 		}
-
-		const endId = crypto.randomUUID()
 
 		//
 		// pre loop
@@ -1054,6 +1076,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 						index: -1-i,
 					}
 				}
+				context.functionId = variable.ID
 
 				pushToAssembly([`@${variable.ID}`])
 				
@@ -1195,6 +1218,19 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				pushToAssembly(["not"])
 			}
 
+			else if (thing.type == "greaterThan") {
+				assemblyLoop(assembly, thing.left, false, true, buildType)
+				assemblyLoop(assembly, thing.right, false, true, buildType)
+				pushToAssembly(["greaterThan"])
+			}
+
+			// lessThan is just greaterThan in reverse
+			else if (thing.type == "lessThan") {
+				assemblyLoop(assembly, thing.right, false, true, buildType)
+				assemblyLoop(assembly, thing.left, false, true, buildType)
+				pushToAssembly(["greaterThan"])
+			}
+
 			else if (thing.type == "join") {
 				assemblyLoop(assembly, thing.left, false, true, buildType)
 				assemblyLoop(assembly, thing.right, false, true, buildType)
@@ -1278,7 +1314,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				assemblyLoop(assembly, thing.statement, false, true, buildType)
 				pushToAssembly(["setGlobal", "0"])
 				// for now just jump to the end of the function
-				pushToAssembly(["push", "*end " + endId])
+				pushToAssembly(["push", "*end " + context.functionId])
 				pushToAssembly(["jump"])
 			}
 
@@ -1301,7 +1337,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 		if (newScope) {
 			if (level != 0) {
-				pushToAssembly(["@" + "end " + endId])
+				pushToAssembly(["@" + "end " + context.functionId])
 				pushToAssembly(["removeRegisters", String(getRegisterRequirement())])
 			}
 

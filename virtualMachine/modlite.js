@@ -1,5 +1,5 @@
 /*
-	RunTime version 11
+	RunTime version 12
 
 	For JavaScript.
 	Can run a web browser or node.
@@ -48,8 +48,9 @@ const binaryCodes = {
 	
 	// check to see if two values are equivalent
 	equivalent: "q",
+	greaterThan: "r",
 	// join to strings
-	join: "r",
+	join: "s",
 	// reverse a bool (true = false and false = true)
 	not: "z",
 	// break character
@@ -76,6 +77,10 @@ class ModliteRunTime {
 			const startString = this.stack.pop()
 			const string = this.stack.pop()
 			this.stack.push(string.startsWith(startString) ? "1" : "0")
+		},
+		["MLSL:toNumber"]: () => {
+			const string = this.stack.pop()
+			this.stack.push(String(Number(string)))
 		},
 	}
 	index = 0
@@ -116,7 +121,7 @@ class ModliteRunTime {
 
 			if (char == binaryCodes.push) {
 				const data = goToBreak()
-				// console.log("push", data)
+				// console.log("push", `${data}(${charToBaseTen(data)})`)
 				this.stack.push(data)
 			}
 			
@@ -248,6 +253,15 @@ class ModliteRunTime {
 				// console.log("equivalent", value1, value2)
 
 				this.stack.push(value1 == value2 ? "1" : "0")
+			}
+
+			else if (char == binaryCodes.greaterThan) {
+				const value2 = this.stack.pop()
+				const value1 = this.stack.pop()
+
+				// console.log("greaterThan", value1, value2, value1 > value2)
+
+				this.stack.push(value1 > value2 ? "1" : "0")
 			}
 
 			else if (char == binaryCodes.join) {
