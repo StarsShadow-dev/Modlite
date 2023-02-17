@@ -1,0 +1,19 @@
+import { print asString } from "StandardLibrary"
+import { createInput writeToInput } from "../node.json"
+
+function main() void {
+	createInput(onInput)
+
+	var i number
+
+	i = 0
+
+	while (i < 100000) {
+		writeToInput(asString(i))
+		i = i + 1
+	}
+}
+
+function onInput(line:string) void {
+	print("line " .. line)
+}

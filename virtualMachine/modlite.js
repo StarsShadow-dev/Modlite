@@ -1,5 +1,5 @@
 /*
-	RunTime version 12
+	RunTime version 13
 
 	For JavaScript.
 	Can run a web browser or node.
@@ -81,6 +81,9 @@ class ModliteRunTime {
 		["MLSL:toNumber"]: () => {
 			const string = this.stack.pop()
 			this.stack.push(String(Number(string)))
+		},
+		["MLSL:asString"]: () => {
+			// nothing needs to happen in JavaScript
 		},
 	}
 	index = 0
@@ -259,14 +262,16 @@ class ModliteRunTime {
 				const value2 = this.stack.pop()
 				const value1 = this.stack.pop()
 
-				// console.log("greaterThan", value1, value2, value1 > value2)
+				// console.log("greaterThan", value1, value2, Number(value1) > Number(value2))
 
-				this.stack.push(value1 > value2 ? "1" : "0")
+				this.stack.push(Number(value1) > Number(value2) ? "1" : "0")
 			}
 
 			else if (char == binaryCodes.join) {
 				const string2 = this.stack.pop()
 				const string1 = this.stack.pop()
+
+				// console.log("join", string1, string2)
 
 				this.stack.push(string1 + string2)
 			}

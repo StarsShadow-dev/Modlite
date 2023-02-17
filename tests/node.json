@@ -16,5 +16,16 @@
 			}
 		],
 		"return": "void"
+	},
+	"writeToInput": {
+		"type": "exposedFunction",
+		"ID": "Node:writeToInput",
+		"args": [
+			{
+				"name": "text",
+				"type": "string"
+			}
+		],
+		"return": "void"
 	}
 }

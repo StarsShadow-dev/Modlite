@@ -28,6 +28,17 @@ runTime.exposedFunctions["Node:createInput"] = () => {
 	rl.prompt();
 }
 
+runTime.exposedFunctions["Node:writeToInput"] = () => {
+	if (!rl) throw "no readline for Node:writeToInput"
+
+	const text = runTime.stack.pop()
+
+	if (text.includes("\n")) throw "line breaks cannot be in Node:writeToInput"
+
+	rl.write(null, { ctrl: true, name: 'u' })
+	rl.write(text)
+}
+
 const opCode = fs.readFileSync(path, "utf8")
 
 runTime.binary = opCode
