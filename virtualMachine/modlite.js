@@ -50,8 +50,7 @@ const binaryCodes = {
 	equivalent: "q",
 	// join to strings
 	join: "r",
-	// reverse a bool
-	// true = false and false = true
+	// reverse a bool (true = false and false = true)
 	not: "z",
 	// break character
 	break: "\uFFFF",

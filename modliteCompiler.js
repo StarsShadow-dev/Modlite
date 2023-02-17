@@ -68,8 +68,7 @@ const Modlite_compiler = {
 		equivalent: "q",
 		// join to strings
 		join: "r",
-		// reverse a bool
-		// true = false and false = true
+		// reverse a bool (true = false and false = true)
 		not: "z",
 		// break character
 		break: "\uFFFF",
@@ -895,7 +894,11 @@ Modlite_compiler.compileCode = (rootPath) => {
 		// } else {
 		// 	assembly.push(...context.startAssembly)
 		// }
-		assembly.push(...context.startAssembly)
+		if (files[conf.entry].main) {
+			assembly.push(...context.startAssembly)
+		} else {
+			assembly.push("jump", "\n")
+		}
 		assembly.push(...context.mainAssembly)
 		if (logEverything) console.log("assembly:\n " + assembly.join(" ") + "\n")
 
@@ -925,7 +928,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 	if (logEverything) console.log("tokens:\n" + JSON.stringify(tokens, null) + "\n")
 
 	const build_in = Modlite_compiler.parse({ lineNumber: 1, level: -1, i: 0 }, tokens, false)
-	if (logEverything) console.log("build:\n" + JSON.stringify(build_in, null, 2) + "\n")
+	if (logEverything) console.log("build:\n" + JSON.stringify(build_in, null) + "\n")
 
 	let level = -1
 	let lineNumber = 0
@@ -1322,12 +1325,6 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			if (variables[i][name]) return variables[i][name]
 		}
 	}
-
-	// function setVariable(name, value) {
-	// 	for (let i = 0; i < variables.length; i++) {
-	// 		if (variables[i][name]) variables[i][name] = value
-	// 	}
-	// }
 
 	function getRegisterRequirement() {
 		let count = 0
