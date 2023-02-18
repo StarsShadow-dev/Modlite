@@ -966,7 +966,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 		const thing = build_in[index];
 		if (thing.lineNumber) lineNumber = thing.lineNumber
 
-		if (thing.type != "function" && thing.type != "import" && thing.type != "definition" && thing.type != "test") err("not a function or import or definition or test at top level")
+		if (thing.type != "function" && thing.type != "import" && thing.type != "definition" && thing.type != "compilerSetting") err("not a function, import, definition or compilerSetting at top level")
 	}
 
 	assemblyLoop(context.mainAssembly, build_in, true, false, "normal")
