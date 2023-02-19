@@ -157,6 +157,8 @@ Modlite_compiler.lex = (stringin) => {
 						if (escaped) {
 							if (loop_char == "n") {
 								past += "\n"
+							} else if (loop_char == "r") {
+								past += "\r"
 							} else if (loop_char == "t") {
 								past += "\t"
 							}

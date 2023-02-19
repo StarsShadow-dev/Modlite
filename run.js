@@ -18,14 +18,23 @@ runTime.exposedFunctions["Node:createInput"] = () => {
 		output: process.stdout
 	});
 	onInputI = Number(runTime.stack.pop().charCodeAt(0).toString(10))
+	// process.stdin.on('keypress', (char, k) => {
+	// 	console.log(char, k)
+	// 	runTime.stack.push(char)
+	// 	runTime.index = onInputI
+	// 	runTime.run()
+	// });
 	rl.on('line', (line) => {
 		runTime.stack.push(line)
 		runTime.index = onInputI
 		runTime.run()
-
-		rl.prompt();
 	});
 	rl.prompt();
+}
+
+runTime.exposedFunctions["Node:removeInput"] = () => {
+	// rl.write(null, { ctrl: true, name: 'c' })
+	process.stdin.unref()
 }
 
 runTime.exposedFunctions["Node:writeToInput"] = () => {
@@ -35,8 +44,29 @@ runTime.exposedFunctions["Node:writeToInput"] = () => {
 
 	if (text.includes("\n")) throw "line breaks cannot be in Node:writeToInput"
 
-	rl.write(null, { ctrl: true, name: 'u' })
 	rl.write(text)
+}
+
+runTime.exposedFunctions["Node:promptInput"] = () => {
+	if (!rl) throw "no readline for Node:promptInput"
+
+	rl.prompt();
+}
+
+runTime.exposedFunctions["Node:clearInput"] = () => {
+	if (!rl) throw "no readline for Node:clearInput"
+
+	rl.write(null, { ctrl: true, name: 'u' })
+}
+
+runTime.exposedFunctions["Node:setTimeout"] = () => {
+	const time = Number(runTime.stack.pop())
+	const functionToRun = Number(runTime.stack.pop().charCodeAt(0).toString(10))
+
+	setTimeout(() => {
+		runTime.index = functionToRun
+		runTime.run()
+	}, time);
 }
 
 const opCode = fs.readFileSync(path, "utf8")

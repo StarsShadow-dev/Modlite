@@ -17,6 +17,12 @@
 		],
 		"return": "void"
 	},
+	"removeInput": {
+		"type": "exposedFunction",
+		"ID": "Node:removeInput",
+		"args": [],
+		"return": "void"
+	},
 	"writeToInput": {
 		"type": "exposedFunction",
 		"ID": "Node:writeToInput",
@@ -24,6 +30,35 @@
 			{
 				"name": "text",
 				"type": "string"
+			}
+		],
+		"return": "void"
+	},
+	"promptInput": {
+		"type": "exposedFunction",
+		"ID": "Node:promptInput",
+		"args": [],
+		"return": "void"
+	},
+	"clearInput": {
+		"type": "exposedFunction",
+		"ID": "Node:clearInput",
+		"args": [],
+		"return": "void"
+	},
+	"setTimeout": {
+		"type": "exposedFunction",
+		"ID": "Node:setTimeout",
+		"args": [
+			{
+				"name": "onInput",
+				"type": "function",
+				"args": [],
+				"return": "void"
+			},
+			{
+				"name": "time",
+				"type": "number"
 			}
 		],
 		"return": "void"

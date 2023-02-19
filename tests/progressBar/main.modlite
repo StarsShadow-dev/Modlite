@@ -1,0 +1,66 @@
+import { print asString } from "StandardLibrary"
+import { createInput removeInput clearInput writeToInput setTimeout } from "../node.json"
+
+var i number
+
+function main() void {
+	i = 0
+
+	createInput(onInput)
+	loop()
+}
+
+function loop() void {
+	if (i > 100) {
+		removeInput()
+		return void
+	}
+	display(i)
+	i = i + 1
+	setTimeout(loop 100)
+}
+
+function display(i:number) void {
+	clearInput()
+	writeToInput("[")
+	switch {
+		case (i < 00) {
+			writeToInput("----------")
+		}
+		case (i < 10) {
+			writeToInput("=---------")
+		}
+		case (i < 20) {
+			writeToInput("==--------")
+		}
+		case (i < 30) {
+			writeToInput("===-------")
+		}
+		case (i < 40) {
+			writeToInput("====------")
+		}
+		case (i < 50) {
+			writeToInput("=====-----")
+		}
+		case (i < 60) {
+			writeToInput("======----")
+		}
+		case (i < 70) {
+			writeToInput("=======---")
+		}
+		case (i < 80) {
+			writeToInput("========--")
+		}
+		case (i < 90) {
+			writeToInput("=========-")
+		}
+		case (true) {
+			writeToInput("==========")
+		}
+	}
+	writeToInput("] " .. asString(i) .. "%")
+}
+
+function onInput(line:string) void {
+	//display(i)
+}

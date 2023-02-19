@@ -174,7 +174,7 @@ class ModliteRunTime {
 			
 			else if (char == binaryCodes.getGlobal) {
 				const int = goToBreak()
-				// console.log("getGlobal", int)
+				// console.log("getGlobal", int, this.globals[Number(int)])
 				this.stack.push(this.globals[Number(int)])
 			}
 			
