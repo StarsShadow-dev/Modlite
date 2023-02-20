@@ -899,6 +899,7 @@ Modlite_compiler.compileCode = (rootPath) => {
 			testCounter: 1,
 
 			functionId: undefined,
+			expectedReturnType: undefined,
 
 			startAssembly: [
 				"push", "*" + conf.entry + " main", "\n",
@@ -1098,6 +1099,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 					}
 				}
 				context.functionId = variable.ID
+				context.expectedReturnType = variable.return
 
 				pushToAssembly([`@${variable.ID}`])
 				
@@ -1315,6 +1317,9 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			}
 
 			else if (thing.type == "return") {
+				// actually I can just reuse checkArguments
+				checkArguments("return", thing.statement, [{name: "value", type: context.expectedReturnType}])
+
 				assemblyLoop(assembly, thing.statement, false, true, buildType)
 				pushToAssembly(["setGlobal", "0"])
 				// for now just jump to the end of the function
