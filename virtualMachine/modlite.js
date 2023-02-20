@@ -161,7 +161,7 @@ class ModliteRunTime {
 			
 			else if (char == binaryCodes.get) {
 				const int = goToBreak()
-				// console.log("get", int)
+				// console.log("get", int, this.stack[Number(this.arp)+Number(int)])
 				this.stack.push(this.stack[Number(this.arp)+Number(int)])
 			}
 

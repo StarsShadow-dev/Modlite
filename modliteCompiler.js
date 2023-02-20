@@ -999,6 +999,25 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 					return: thing.return,
 				}
 				files[path][thing.name] = variables[0][thing.name]
+			} else if (thing.type == "definition") {
+				if (Modlite_compiler.reservedWords.includes(thing.name)) err(`${thing.name} is a reserved word`)
+				if (level == 0) {
+					variables[level][thing.name] = {
+						type: thing.variableType,
+						index: context.globalCount++,
+						global: true,
+						public: thing.public,
+						initialized: false,
+					}
+					files[path][thing.name] = variables[level][thing.name]
+				} else {
+					variables[level][thing.name] = {
+						type: thing.variableType,
+						index: getRegisterRequirement(),
+						global: false,
+						initialized: false,
+					}
+				}
 			} else if (thing.type == "import") {
 				if (thing.path.endsWith(".modlite")) {
 					if (!files[thing.path]) {
@@ -1102,24 +1121,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			}
 
 			else if (thing.type == "definition") {
-				if (Modlite_compiler.reservedWords.includes(thing.name)) err(`${thing.name} is a reserved word`)
-				if (level == 0) {
-					variables[level][thing.name] = {
-						type: thing.variableType,
-						index: context.globalCount++,
-						global: true,
-						public: thing.public,
-						initialized: false,
-					}
-					files[path][thing.name] = variables[level][thing.name]
-				} else {
-					variables[level][thing.name] = {
-						type: thing.variableType,
-						index: getRegisterRequirement(),
-						global: false,
-						initialized: false,
-					}
-				}
+				
 			}
 
 			else if (thing.type == "assignment") {
@@ -1367,7 +1369,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 	function getRegisterRequirement() {
 		let count = 0
 		for (const key in variables[level]) {
-			if (variables[level][key].index > 0) {
+			if (variables[level][key].index >= 0) {
 				count++
 			}
 		}
