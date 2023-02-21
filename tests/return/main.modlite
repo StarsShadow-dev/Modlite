@@ -1,8 +1,15 @@
 import { print } from "StandardLibrary"
 
-function main() void {
-	var value string
+var hello string
 
+var world string
+
+function main() void {
+
+	hello = "Hello"
+	world = "World"
+
+	var value string
 	value = returnTest() .. ", and more"
 	print(value .. ".")
 }
@@ -10,6 +17,6 @@ function main() void {
 function returnTest() string {
 	var value string
 
-	value = "Hello" .. ", "
-	return value .. "World"
+	value = hello .. ", "
+	return value .. world
 }

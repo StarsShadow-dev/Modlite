@@ -4,6 +4,10 @@ import * as readline from 'node:readline/promises';
 
 // node run.js tests/program.cmodlite
 
+function getCharacter(string) {
+	return string.split(' ').map(char => String.fromCharCode(parseInt(char, 10))).join('');
+}
+
 const path = process.argv[2]
 
 if (!path) throw "no path specified"
@@ -25,6 +29,7 @@ runTime.exposedFunctions["Node:createInput"] = () => {
 	// 	runTime.run()
 	// });
 	rl.on('line', (line) => {
+		runTime.stack.push(getCharacter(String(runTime.binary.length)))
 		runTime.stack.push(line)
 		runTime.index = onInputI
 		runTime.run()
@@ -64,6 +69,7 @@ runTime.exposedFunctions["Node:setTimeout"] = () => {
 	const functionToRun = Number(runTime.stack.pop().charCodeAt(0).toString(10))
 
 	setTimeout(() => {
+		runTime.stack.push(getCharacter(String(runTime.binary.length)))
 		runTime.index = functionToRun
 		runTime.run()
 	}, time);

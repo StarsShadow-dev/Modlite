@@ -900,8 +900,11 @@ Modlite_compiler.compileCode = (rootPath) => {
 
 			functionId: undefined,
 			expectedReturnType: undefined,
-
+			setupAssembly: [
+				"push", "", "\n"
+			],
 			startAssembly: [
+				"push", "*end_of_program", "\n",
 				"push", "*" + conf.entry + " main", "\n",
 				"jump", "\n",
 			],
@@ -923,12 +926,15 @@ Modlite_compiler.compileCode = (rootPath) => {
 		// } else {
 		// 	assembly.push(...context.startAssembly)
 		// }
+		assembly.push(...context.setupAssembly)
 		if (files[conf.entry].main) {
 			assembly.push(...context.startAssembly)
 		} else {
 			assembly.push("jump", "\n")
 		}
+
 		assembly.push(...context.mainAssembly)
+		assembly.push("@end_of_program")
 		if (logEverything) console.log("assembly:\n " + assembly.join(" ") + "\n")
 
 		const opCode = Modlite_compiler.assemblyToOperationCode(assembly)
@@ -1011,6 +1017,9 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 						initialized: false,
 					}
 					files[path][thing.name] = variables[level][thing.name]
+
+					// make sure that there is room on the stack for the global variable
+					context.setupAssembly.push("push", "null", "\n")
 				} else {
 					variables[level][thing.name] = {
 						type: thing.variableType,
@@ -1318,10 +1327,14 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 			else if (thing.type == "return") {
 				// actually I can just reuse checkArguments
-				checkArguments("return", thing.statement, [{name: "value", type: context.expectedReturnType}])
+				if (thing.statement.length != 0 && context.expectedReturnType != "void") {
+					checkArguments("return", thing.statement, [{name: "value", type: context.expectedReturnType}])
+				}
 
 				assemblyLoop(assembly, thing.statement, false, true, buildType)
-				pushToAssembly(["setGlobal", "0"])
+				if (thing.statement.length != 0 && context.expectedReturnType != "void") {
+					pushToAssembly(["setGlobal", "0"])
+				}
 				// for now just jump to the end of the function
 				pushToAssembly(["push", "*end " + context.functionId])
 				pushToAssembly(["jump"])
@@ -1375,17 +1388,6 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 		let count = 0
 		for (const key in variables[level]) {
 			if (variables[level][key].index >= 0) {
-				count++
-			}
-		}
-
-		return count
-	}
-
-	function getGlobalAmount() {
-		let count = 0
-		for (const key in variables[level]) {
-			if (variables[level][key].global) {
 				count++
 			}
 		}

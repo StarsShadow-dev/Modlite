@@ -1,5 +1,5 @@
 /*
-	RunTime version 13
+	RunTime version 14
 
 	For JavaScript.
 	Can run a web browser or node.
@@ -68,7 +68,6 @@ class ModliteRunTime {
 			console.error("index", this.index)
 			console.error("arp", this.arp)
 			console.error("stack", this.stack)
-			console.error("globals", this.globals, "\n")
 			console.error("program ending early\n")
 	
 			this.reset()
@@ -89,13 +88,11 @@ class ModliteRunTime {
 	index = 0
 	binary = ""
 	stack = []
-	globals = []
 	arp = 0 // activation record pointer
 	reset = () => {
 		this.index = 0
 		this.binary = ""
 		this.stack = []
-		this.globals = []
 		this.arp = 0
 	}
 	run = () => {
@@ -168,14 +165,14 @@ class ModliteRunTime {
 			else if (char == binaryCodes.setGlobal) {
 				const int = goToBreak()
 				const value = this.stack.pop()
-				// console.log("setGlobal", int, value)
-				this.globals[Number(int)] = value
+				// console.log("setGlobal", int, value, this.stack[Number(int)])
+				this.stack[Number(int)] = value
 			}
 			
 			else if (char == binaryCodes.getGlobal) {
 				const int = goToBreak()
-				// console.log("getGlobal", int, this.globals[Number(int)])
-				this.stack.push(this.globals[Number(int)])
+				// console.log("getGlobal", int, this.stack[Number(int)])
+				this.stack.push(this.stack[Number(int)])
 			}
 			
 			else if (char == binaryCodes.jump) {
