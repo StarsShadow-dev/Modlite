@@ -1108,6 +1108,8 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 					variables[level+1][arg.name] = {
 						type: arg.type,
 						index: -1-i,
+						global: false,
+						initialized: true,
 					}
 				}
 				context.functionId = variable.ID
@@ -1159,7 +1161,6 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 				const variable = getVariable(thing.value)
 				if (!variable) err("variable " + thing.value + " does not exist")
-				// if (variable.initialized == false) err("variable " + thing.value + " not initialized")
 
 				if (variable.type == "function") {
 					pushToAssembly(["push", "*" + variable.ID])
@@ -1167,6 +1168,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 					if (variable.global) {
 						pushToAssembly(["getGlobal", String(variable.index)])
 					} else {
+						if (!variable.initialized) err("variable " + thing.value + " not initialized")
 						pushToAssembly(["get", String(variable.index)])
 					}
 				}
