@@ -930,7 +930,10 @@ Modlite_compiler.compileCode = (rootPath) => {
 		if (files[conf.entry].main) {
 			assembly.push(...context.startAssembly)
 		} else {
-			assembly.push("jump", "\n")
+			assembly.push(
+				"push", "*end_of_program", "\n",
+				"jump", "\n"
+			)
 		}
 
 		assembly.push(...context.mainAssembly)
