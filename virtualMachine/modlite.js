@@ -1,13 +1,14 @@
 /*
-	RunTime version 14
+	RunTime version 15
 
 	For JavaScript.
 	Can run a web browser or node.
 */
 
 const binaryCodes = {
+
 	//
-	// information management
+	// stack management
 	//
 
 	push: "a",
@@ -25,7 +26,7 @@ const binaryCodes = {
 	getGlobal: "h",
 
 	//
-	// Jumping
+	// jumping
 	//
 
 	// jump to a location (takes a single character off the stack. The place to jump into is determined by this characters charCode)
@@ -38,21 +39,34 @@ const binaryCodes = {
 	externalJump: "l",
 
 	//
+	// high-level data storage
+	//
+
+	createTable: "m",
+	removeTable: "n",
+	setTable: "o",
+	getTable: "p",
+
+	//
 	// math
 	//
 
-	add: "m",
-	subtract: "n",
-	multiply: "o",
-	divide: "p",
+	add: "q",
+	subtract: "r",
+	multiply: "s",
+	divide: "t",
+
+	//
+	// other
+	//
 	
 	// check to see if two values are equivalent
-	equivalent: "q",
-	greaterThan: "r",
+	equivalent: "u",
+	greaterThan: "v",
 	// join to strings
-	join: "s",
+	join: "w",
 	// reverse a bool (true = false and false = true)
-	not: "z",
+	not: "x",
 	// break character
 	break: "\uFFFF",
 }
@@ -68,6 +82,7 @@ class ModliteRunTime {
 			console.error("index", this.index)
 			console.error("arp", this.arp)
 			console.error("stack", this.stack)
+			console.error("tables", this.tables)
 			console.error("program ending early\n")
 	
 			this.reset()
@@ -84,12 +99,25 @@ class ModliteRunTime {
 		["MLSL:asString"]: () => {
 			// nothing needs to happen in JavaScript
 		},
+		["MLSL:deleteTable"]: () => {
+			const ID = this.stack.pop()
+
+			// console.log("deleteTable", ID)
+
+			delete this.tables[ID]
+		},
 	}
+	tableCount = 1
+	tables = {}
+
 	index = 0
 	binary = ""
 	stack = []
 	arp = 0 // activation record pointer
 	reset = () => {
+		this.tableCount = 1
+		this.tables = {}
+
 		this.index = 0
 		this.binary = ""
 		this.stack = []
@@ -121,13 +149,17 @@ class ModliteRunTime {
 
 			if (char == binaryCodes.push) {
 				const data = goToBreak()
+
 				// console.log("push", `${data}(${charToBaseTen(data)})`)
+
 				this.stack.push(data)
 			}
 			
 			else if (char == binaryCodes.pop) {
 				const amount = Number(goToBreak())
+
 				// console.log("pop", amount)
+
 				this.stack.splice(this.stack.length - amount, amount)
 			}
 			
@@ -135,11 +167,12 @@ class ModliteRunTime {
 				this.stack.push(this.arp)
 				this.arp = this.stack.length-1
 				const amount = Number(goToBreak())
+
 				// console.log("addRegisters", amount)
+
 				for (let i = 0; i < amount; i++) {
 					this.stack.push(undefined)
 				}
-				
 			}
 			
 			else if (char == binaryCodes.removeRegisters) {
@@ -176,8 +209,6 @@ class ModliteRunTime {
 			}
 			
 			else if (char == binaryCodes.jump) {
-				// if the stack is empty end program
-				if (this.stack.length == 0) break
 				const location = charToBaseTen(this.stack.pop())
 				// console.log("jump", location)
 				this.index = location
@@ -208,6 +239,40 @@ class ModliteRunTime {
 				const name = this.stack.pop()
 				// console.log("externalJump", name)
 				this.exposedFunctions[name]()
+			}
+
+			else if (char == binaryCodes.createTable) {
+				// console.log("createTable", this.tableCount)
+
+				this.tables[this.tableCount] = {}
+				this.stack.push(String(this.tableCount++))
+			}
+
+			else if (char == binaryCodes.removeTable) {
+				const tableID = this.stack.pop()
+
+				// console.log("removeTable", tableID)
+				
+				delete this.tables[tableID]
+			}
+
+			else if (char == binaryCodes.setTable) {
+				const value = this.stack.pop()
+				const ID = this.stack.pop()
+				const tableID = this.stack.pop()
+
+				// console.log("setTable", tableID, ID, value, this.tables)
+
+				this.tables[tableID][ID] = value
+			}
+
+			else if (char == binaryCodes.getTable) {
+				const ID = this.stack.pop()
+				const tableID = this.stack.pop()
+
+				// console.log("getTable", tableID, ID, this.tables)
+
+				this.stack.push(this.tables[tableID][ID])
 			}
 
 			else if (char == binaryCodes.add) {

@@ -1,0 +1,23 @@
+import { print error } from "StandardLibrary"
+
+class Cat {
+	var name string
+	var age number
+
+	/*function haveBirthday(self:self) number {
+		print("in haveBirthday")
+		//self.age = self.age + 1
+		//return self.age
+	}*/
+}
+
+function main() void {
+	var cat Cat
+
+	cat = Cat()
+
+	cat.name = "test"
+	cat.age = 10
+
+	error("")
+)

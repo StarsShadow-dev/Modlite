@@ -57,5 +57,16 @@
 			}
 		],
 		"return": "string"
+	},
+	"deleteTable": {
+		"type": "exposedFunction",
+		"ID": "MLSL:deleteTable",
+		"args": [
+			{
+				"name": "ID",
+				"type": "table"
+			}
+		],
+		"return": "void"
 	}
 }
