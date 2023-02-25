@@ -19,5 +19,8 @@ function main() void {
 	cat.name = "test"
 	cat.age = 10
 
+	print("cat name = " .. cat.name)
+	print("cat age = " .. cat.age)
+
 	error("")
 )

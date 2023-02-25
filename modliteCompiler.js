@@ -1200,23 +1200,21 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 				const typelist = assemblyLoop(assembly, thing.left, "memberAccess", buildType, ["expectValues"])
 
-				// console.log("memberAccess", recursionHistory[recursionHistory.length-1])
-
 				if (thing.left[0].type == "memberAccess") {
 					pushToAssembly(["push", String(thing.right)])
-					if (recursionHistory[recursionHistory.length-1] != "assignment_left") pushToAssembly(["getTable"])
 				} else {
 					const variable = getVariable(typelist[0])
-					// console.log("memberAccess type", typelist, variable)
 
 					if (variable && variable.type == "class") {
 						if (!variable.data[thing.right]) err(`class ${typelist[0]} does not have a member named ${thing.right}`)
+
 						pushToAssembly(["push", String(variable.data[thing.right].index)])
 					} else {
 						pushToAssembly(["push", String(thing.right)])
-						if (recursionHistory[recursionHistory.length-1] != "assignment_left") pushToAssembly(["getTable"])
 					}
 				}
+
+				if (recursionHistory[recursionHistory.length-1] != "assignment_left") pushToAssembly(["getTable"])
 
 				types.push(typelist[0])
 			}

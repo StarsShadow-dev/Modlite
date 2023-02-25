@@ -13,9 +13,9 @@ function main() void {
 
 	print(a.b.c.string)
 
-	deleteTable(a.b.c)
+	/*deleteTable(a.b.c)
 	deleteTable(a.b)
-	deleteTable(a)
+	deleteTable(a)*/
 
 	error("test")
 )

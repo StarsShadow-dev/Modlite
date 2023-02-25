@@ -100,14 +100,14 @@ class ModliteRunTime {
 			// nothing needs to happen in JavaScript
 		},
 		["MLSL:deleteTable"]: () => {
-			const ID = this.stack.pop()
+			const tableID = this.stack.pop()
 
-			// console.log("deleteTable", ID)
+			// console.log("deleteTable", tableID)
 
-			delete this.tables[ID]
+			delete this.tables[tableID]
 		},
 	}
-	tableCount = 1
+	tableCount = 0
 	tables = {}
 
 	index = 0
@@ -115,7 +115,7 @@ class ModliteRunTime {
 	stack = []
 	arp = 0 // activation record pointer
 	reset = () => {
-		this.tableCount = 1
+		this.tableCount = 0
 		this.tables = {}
 
 		this.index = 0
