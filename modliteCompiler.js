@@ -1397,7 +1397,9 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			else if (thing.type == "if") {
 				const if_jump = "if_jump" + context.uniqueIdentifierCounter++
 
-				assemblyLoop(assembly, thing.condition, "if", buildType, ["expectValues"])
+				const typelist = assemblyLoop(assembly, thing.condition, "if", buildType, ["expectValues"])
+				if (typelist.length != 1) err("if statements require 1 bool")
+				if (!typelist[0] || typelist[0] != "bool") err(`if statement got type ${typelist[0]} but expected type bool`)
 				pushToAssembly(["push", "*" + if_jump])
 				pushToAssembly(["notConditionalJump"])
 				assemblyLoop(assembly, thing.trueCodeBlock, "if", buildType, [])
@@ -1410,7 +1412,9 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				const if_else_true = "if_else_true" + context.uniqueIdentifierCounter++
 				const if_else_end = "if_else_end" + context.uniqueIdentifierCounter++
 
-				assemblyLoop(assembly, thing.condition, "if_else", buildType, ["expectValues"])
+				const typelist = assemblyLoop(assembly, thing.condition, "if_else", buildType, ["expectValues"])
+				if (typelist.length != 1) err("if_else statement requires 1 bool")
+				if (!typelist[0] || typelist[0] != "bool") err(`if_else statement got type ${typelist[0]} but expected type bool`)
 				pushToAssembly(["push", "*" + if_else_true])
 				pushToAssembly(["conditionalJump"])
 
