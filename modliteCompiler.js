@@ -86,6 +86,8 @@ const Modlite_compiler = {
 		join: "w",
 		// reverse a bool (true = false and false = true)
 		not: "x",
+		and: "y",
+		or: "z",
 		// break character
 		break: "\uFFFF",
 	},

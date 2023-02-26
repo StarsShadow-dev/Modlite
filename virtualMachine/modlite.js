@@ -1,5 +1,5 @@
 /*
-	RunTime version 15
+	RunTime version 16
 
 	For JavaScript.
 	Can run a web browser or node.
@@ -67,6 +67,8 @@ const binaryCodes = {
 	join: "w",
 	// reverse a bool (true = false and false = true)
 	not: "x",
+	and: "y",
+	or: "z",
 	// break character
 	break: "\uFFFF",
 }
