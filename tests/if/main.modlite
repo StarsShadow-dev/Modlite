@@ -8,9 +8,11 @@ function main() void {
 
 	if (true) {
 		print("true")
+	} else {
+		print("something is very wrong1")
 	}
 	if (false) {
-		print("something is very wrong")
+		print("something is very wrong2")
 	}
 
 	if ("test" == "test") {
@@ -18,6 +20,6 @@ function main() void {
 	}
 
 	if ("test" != "notTest") {
-		print("test != test")
+		print("test != notTest")
 	}
 }

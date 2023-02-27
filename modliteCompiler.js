@@ -649,7 +649,7 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 			next_token()
 			const falseCodeBlock = Modlite_compiler.parse(context, tokens, false)
 			push_to_build({
-				type: "if_else",
+				type: "if",
 				condition: condition,
 				trueCodeBlock: trueCodeBlock,
 				falseCodeBlock: falseCodeBlock,
@@ -1397,37 +1397,32 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			}
 
 			else if (thing.type == "if") {
-				const if_jump = "if_jump" + context.uniqueIdentifierCounter++
+				const if_true = "if_true" + context.uniqueIdentifierCounter++
+				const if_end = "if_end" + context.uniqueIdentifierCounter++
 
 				const typelist = assemblyLoop(assembly, thing.condition, "if", buildType, ["expectValues"])
+
 				if (typelist.length != 1) err("if statements require 1 bool")
 				if (!typelist[0] || typelist[0] != "bool") err(`if statement got type ${typelist[0]} but expected type bool`)
-				pushToAssembly(["push", "*" + if_jump])
-				pushToAssembly(["notConditionalJump"])
-				assemblyLoop(assembly, thing.trueCodeBlock, "if", buildType, [])
-				pushToAssembly(["@" + if_jump])
 
-				types.push(undefined)
-			}
+				if (thing.falseCodeBlock) {
+					pushToAssembly(["push", "*" + if_true])
+					pushToAssembly(["conditionalJump"])
 
-			else if (thing.type == "if_else") {
-				const if_else_true = "if_else_true" + context.uniqueIdentifierCounter++
-				const if_else_end = "if_else_end" + context.uniqueIdentifierCounter++
+					assemblyLoop(assembly, thing.falseCodeBlock, "if", buildType, [])
+					pushToAssembly(["push", "*" + if_end])
+					pushToAssembly(["jump"])
 
-				const typelist = assemblyLoop(assembly, thing.condition, "if_else", buildType, ["expectValues"])
-				if (typelist.length != 1) err("if_else statement requires 1 bool")
-				if (!typelist[0] || typelist[0] != "bool") err(`if_else statement got type ${typelist[0]} but expected type bool`)
-				pushToAssembly(["push", "*" + if_else_true])
-				pushToAssembly(["conditionalJump"])
+					pushToAssembly(["@" + if_true])
+					assemblyLoop(assembly, thing.trueCodeBlock, "if", buildType, [])
 
-				assemblyLoop(assembly, thing.falseCodeBlock, "if_else", buildType, [])
-				pushToAssembly(["push", "*" + if_else_end])
-				pushToAssembly(["jump"])
-
-				pushToAssembly(["@" + if_else_true])
-				assemblyLoop(assembly, thing.trueCodeBlock, "if_else", buildType, [])
-
-				pushToAssembly(["@" + if_else_end])
+					pushToAssembly(["@" + if_end])
+				} else {
+					pushToAssembly(["push", "*" + if_end])
+					pushToAssembly(["notConditionalJump"])
+					assemblyLoop(assembly, thing.trueCodeBlock, "if", buildType, [])
+					pushToAssembly(["@" + if_end])
+				}
 
 				types.push(undefined)
 			}

@@ -1,5 +1,5 @@
 /*
-	RunTime version 16
+	RunTime version 17
 
 	For JavaScript.
 	Can run a web browser or node.
@@ -344,6 +344,24 @@ class ModliteRunTime {
 				const bool = this.stack.pop()
 
 				this.stack.push(bool == "0" ? "1" : "0")
+			}
+
+			else if (char == binaryCodes.and) {
+				const value2 = this.stack.pop()
+				const value1 = this.stack.pop()
+
+				// console.log("and", value1, value2)
+
+				this.stack.push(value1 == "1" && value2 == "1")
+			}
+
+			else if (char == binaryCodes.or) {
+				const value2 = this.stack.pop()
+				const value1 = this.stack.pop()
+
+				// console.log("or", value1, value2)
+
+				this.stack.push(value1 == "1" || value2 == "1")
 			}
 			
 			else {
