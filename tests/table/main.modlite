@@ -1,17 +1,17 @@
 import { print error deleteTable } from "StandardLibrary"
 
 function main() void {
-	var a table
+	var a [[[string]]]
 
-	a = {}
+	a = []
 
-	a.b = {}
+	//a.b = []
 
-	a.b.c = {}
+	//a.b.c = []
 
-	a.b.c.string = "text is amazing"
+	//a.b.c.string = "text is amazing"
 
-	print(a.b.c.string)
+	//print(a.b.c.string)
 
 	/*deleteTable(a.b.c)
 	deleteTable(a.b)

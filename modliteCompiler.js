@@ -216,7 +216,7 @@ Modlite_compiler.lex = (stringin) => {
 			next_char()
 		}
 
-		else if (char.match(/[\(\)\{\}\:]/)) {
+		else if (char.match(/[\(\)\{\}\[\]\:]/)) {
 			push_token("separator", char)
 		}
 
@@ -396,12 +396,17 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 			} else if (token.value == ")") {
 				return build
 			} else if (token.value == "{") {
-				const next = next_token()
-				if (next.type != "separator" || next.value != "}") err("{} ????")
+				err("unexpected {")
+			} else if (token.value == "}") {
+				return build
+			} else if (token.value == "[") {
+				const value = Modlite_compiler.parse(context, tokens, false, "]")
+
 				push_to_build({
 					type: "table",
+					value: value,
 				})
-			} else if (token.value == "}") {
+			} else if (token.value == "]") {
 				return build
 			} else if (token.value == "!") {
 				err("not available " + token.value)
@@ -591,15 +596,46 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 	function parse_definition(token, isPublic) {
 		const name = next_token()
 
-		const type = next_token()
+		const variableType = parse_type()
+
+		// const type = next_token()
 
 		push_to_build({
 			type: "definition",
 			public: isPublic,
 			name: name.value,
-			variableType: type.value,
+			variableType: variableType,
 			lineNumber: token.lineNumber,
 		})
+	}
+
+	function parse_type() {
+		while (true) {
+			let variableType = next_token()
+			// console.log("parse_type", variableType)
+
+			if (variableType.type == "separator") {
+				if (variableType.value == "[") {
+					let newType = {
+						type: "table",
+						value: parse_type(),
+					}
+					next_token()
+					return newType
+				} else if (variableType.value == "]") {
+					err("tables must have a type")
+				} else {
+					err(variableType.value + "is not a valid separator")
+				}
+			} else if (variableType.type == "word") {
+				return {
+					type: "simpleType",
+					value: variableType.value,
+				}
+			} else {
+				err("parse_type error type = " + variableType.type)
+			}
+		}
 	}
 
 	function parse_import() {
@@ -1241,8 +1277,9 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				let variable
 				if (thing.left[0].type == "word") {
 					variable = getVariable(thing.left[0].value)
-
 					if (!variable) err(`variable ${thing.left[0].value} does not exist`)
+
+					checkType(variable.type, thing.right[0])
 				} else if (thing.left[0].type == "memberAccess") {
 					assemblyLoop(assembly, thing.left, "assignment_left", buildType, ["expectValues"])
 				}
@@ -1403,7 +1440,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				const typelist = assemblyLoop(assembly, thing.condition, "if", buildType, ["expectValues"])
 
 				if (typelist.length != 1) err("if statements require 1 bool")
-				if (!typelist[0] || typelist[0] != "bool") err(`if statement got type ${typelist[0]} but expected type bool`)
+				if (checkType(typelist[0], "bool")) err(`if statement got type ${typelist[0]} but expected type bool`)
 
 				if (thing.falseCodeBlock) {
 					pushToAssembly(["push", "*" + if_true])
@@ -1567,6 +1604,18 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			if (expectedArgument.type == "any") continue
 
 			if (actualType != expectedArgument.type) err(`${name} argument ${i+1} expected type ${expectedArgument.type} but got type ${actualType}`)
+		}
+	}
+
+	function checkType(expected, actual) {
+		console.log("checkType", expected, actual)
+
+		if (expected.type == "simpleType") {
+			if (expected.value == "any") return
+
+			if (expected.value != actual.type) err(`can not set type ${actual.type} to type ${expected.value}`)
+		} else if (expected.type == "table") {
+			err("no table yet")
 		}
 	}
 
