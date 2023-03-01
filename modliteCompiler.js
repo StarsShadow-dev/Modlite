@@ -1281,7 +1281,9 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 					checkType(variable.type, thing.right[0])
 				} else if (thing.left[0].type == "memberAccess") {
-					assemblyLoop(assembly, thing.left, "assignment_left", buildType, ["expectValues"])
+					const typelist = assemblyLoop(assembly, thing.left, "assignment_left", buildType, ["expectValues"])
+
+					checkType(typelist[0], thing.right[0], thing.left)
 				}
 
 				assemblyLoop(assembly, thing.right, "assignment_right", buildType, ["expectValues"])
@@ -1440,7 +1442,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				const typelist = assemblyLoop(assembly, thing.condition, "if", buildType, ["expectValues"])
 
 				if (typelist.length != 1) err("if statements require 1 bool")
-				if (checkType(typelist[0], "bool")) err(`if statement got type ${typelist[0]} but expected type bool`)
+				if (typelist[0] != "bool") err(`if statement got type ${typelist[0]} but expected type bool`)
 
 				if (thing.falseCodeBlock) {
 					pushToAssembly(["push", "*" + if_true])
@@ -1607,15 +1609,31 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 		}
 	}
 
-	function checkType(expected, actual) {
-		console.log("checkType", expected, actual)
+	function checkType(expected, actual, memberAccess) {
+		// console.log("-------- checkType: --------")
+		// console.log("expected", expected)
+		// console.log("actual", actual)
+		// console.log("memberAccess", JSON.stringify(memberAccess, null, 2))
 
-		if (expected.type == "simpleType") {
+		if (!memberAccess || expected.type == "simpleType") {
 			if (expected.value == "any") return
 
-			if (expected.value != actual.type) err(`can not set type ${actual.type} to type ${expected.value}`)
+			if (expected.type == "table") {
+				if (expected.type != actual.type) err(`can not set type ${actual.type} to type ${expected.type}`)
+			} else {
+				if (expected.value != actual.type) err(`can not set type ${actual.type} to type ${expected.value}`)
+			}
 		} else if (expected.type == "table") {
-			err("no table yet")
+
+			if (memberAccess[0].type == "word") {
+				return
+			}
+
+			// console.log("in")
+			checkType(expected.value, actual, memberAccess[0].left)
+
+		} else {
+			err("checkType error expected.type = " + expected.type)
 		}
 	}
 
