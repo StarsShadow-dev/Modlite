@@ -130,7 +130,7 @@ class ModliteRunTime {
 			let past = ""
 			while (true) {
 				const char = this.binary[++this.index];
-				if (!char || char == "\uFFFF") {
+				if (!char || char == binaryCodes["break"]) {
 					return past
 				} else {
 					past += char
@@ -149,7 +149,7 @@ class ModliteRunTime {
 			// 	}
 			// }
 
-			if (char == binaryCodes.push) {
+			if (char == binaryCodes["push"]) {
 				const data = goToBreak()
 
 				// console.log("push", `${data}(${charToBaseTen(data)})`)
@@ -157,7 +157,7 @@ class ModliteRunTime {
 				this.stack.push(data)
 			}
 			
-			else if (char == binaryCodes.pop) {
+			else if (char == binaryCodes["pop"]) {
 				const amount = Number(goToBreak())
 
 				// console.log("pop", amount)
@@ -165,7 +165,7 @@ class ModliteRunTime {
 				this.stack.splice(this.stack.length - amount, amount)
 			}
 			
-			else if (char == binaryCodes.addRegisters) {
+			else if (char == binaryCodes["addRegisters"]) {
 				this.stack.push(this.arp)
 				this.arp = this.stack.length-1
 				const amount = Number(goToBreak())
@@ -177,47 +177,47 @@ class ModliteRunTime {
 				}
 			}
 			
-			else if (char == binaryCodes.removeRegisters) {
+			else if (char == binaryCodes["removeRegisters"]) {
 				const amount = Number(goToBreak())
 				// console.log("removeRegisters", amount)
 				this.stack.splice(this.stack.length - amount, amount)
 				this.arp = this.stack.pop()
 			}
 			
-			else if (char == binaryCodes.set) {
+			else if (char == binaryCodes["set"]) {
 				const int = goToBreak()
 				const value = this.stack.pop()
 				// console.log("set", int, value)
 				this.stack[Number(this.arp)+Number(int)] = value
 			}
 			
-			else if (char == binaryCodes.get) {
+			else if (char == binaryCodes["get"]) {
 				const int = goToBreak()
 				// console.log("get", int, this.stack[Number(this.arp)+Number(int)])
 				this.stack.push(this.stack[Number(this.arp)+Number(int)])
 			}
 
-			else if (char == binaryCodes.setGlobal) {
+			else if (char == binaryCodes["setGlobal"]) {
 				const int = goToBreak()
 				const value = this.stack.pop()
 				// console.log("setGlobal", int, value, this.stack[Number(int)])
 				this.stack[Number(int)] = value
 			}
 			
-			else if (char == binaryCodes.getGlobal) {
+			else if (char == binaryCodes["getGlobal"]) {
 				const int = goToBreak()
 				// console.log("getGlobal", int, this.stack[Number(int)])
 				this.stack.push(this.stack[Number(int)])
 			}
 			
-			else if (char == binaryCodes.jump) {
+			else if (char == binaryCodes["jump"]) {
 				const location = charToBaseTen(this.stack.pop())
-				// console.log("jump", location)
+				console.log("jump", location)
 				this.index = location
 				continue
 			}
 			
-			else if (char == binaryCodes.conditionalJump) {
+			else if (char == binaryCodes["conditionalJump"]) {
 				const location = charToBaseTen(this.stack.pop())
 				const condition = this.stack.pop()
 				// console.log("conditionalJump", location, condition)
@@ -227,7 +227,7 @@ class ModliteRunTime {
 				}
 			}
 
-			else if (char == binaryCodes.notConditionalJump) {
+			else if (char == binaryCodes["notConditionalJump"]) {
 				const location = charToBaseTen(this.stack.pop())
 				const condition = this.stack.pop()
 				// console.log("notConditionalJump", location, condition)
@@ -237,20 +237,20 @@ class ModliteRunTime {
 				}
 			}
 			
-			else if (char == binaryCodes.externalJump) {
+			else if (char == binaryCodes["externalJump"]) {
 				const name = this.stack.pop()
 				// console.log("externalJump", name)
 				this.exposedFunctions[name]()
 			}
 
-			else if (char == binaryCodes.createTable) {
+			else if (char == binaryCodes["createTable"]) {
 				// console.log("createTable", this.tableCount)
 
 				this.tables[this.tableCount] = {}
 				this.stack.push(String(this.tableCount++))
 			}
 
-			else if (char == binaryCodes.removeTable) {
+			else if (char == binaryCodes["removeTable"]) {
 				const tableID = this.stack.pop()
 
 				// console.log("removeTable", tableID)
@@ -258,7 +258,7 @@ class ModliteRunTime {
 				delete this.tables[tableID]
 			}
 
-			else if (char == binaryCodes.setTable) {
+			else if (char == binaryCodes["setTable"]) {
 				const value = this.stack.pop()
 				const ID = this.stack.pop()
 				const tableID = this.stack.pop()
@@ -268,7 +268,7 @@ class ModliteRunTime {
 				this.tables[tableID][ID] = value
 			}
 
-			else if (char == binaryCodes.getTable) {
+			else if (char == binaryCodes["getTable"]) {
 				const ID = this.stack.pop()
 				const tableID = this.stack.pop()
 
@@ -277,7 +277,7 @@ class ModliteRunTime {
 				this.stack.push(this.tables[tableID][ID])
 			}
 
-			else if (char == binaryCodes.add) {
+			else if (char == binaryCodes["add"]) {
 				const number2 = this.stack.pop()
 				const number1 = this.stack.pop()
 
@@ -286,7 +286,7 @@ class ModliteRunTime {
 				this.stack.push(String(Number(number1) + Number(number2)))
 			}
 
-			else if (char == binaryCodes.subtract) {
+			else if (char == binaryCodes["subtract"]) {
 				const number2 = this.stack.pop()
 				const number1 = this.stack.pop()
 
@@ -295,7 +295,7 @@ class ModliteRunTime {
 				this.stack.push(String(Number(number1) - Number(number2)))
 			}
 
-			else if (char == binaryCodes.multiply) {
+			else if (char == binaryCodes["multiply"]) {
 				const number2 = this.stack.pop()
 				const number1 = this.stack.pop()
 
@@ -304,7 +304,7 @@ class ModliteRunTime {
 				this.stack.push(String(Number(number1) * Number(number2)))
 			}
 
-			else if (char == binaryCodes.divide) {
+			else if (char == binaryCodes["divide"]) {
 				const number2 = this.stack.pop()
 				const number1 = this.stack.pop()
 
@@ -313,7 +313,7 @@ class ModliteRunTime {
 				this.stack.push(String(Number(number1) / Number(number2)))
 			}
 
-			else if (char == binaryCodes.equivalent) {
+			else if (char == binaryCodes["equivalent"]) {
 				const value2 = this.stack.pop()
 				const value1 = this.stack.pop()
 
@@ -322,7 +322,7 @@ class ModliteRunTime {
 				this.stack.push(value1 == value2 ? "1" : "0")
 			}
 
-			else if (char == binaryCodes.greaterThan) {
+			else if (char == binaryCodes["greaterThan"]) {
 				const value2 = this.stack.pop()
 				const value1 = this.stack.pop()
 
@@ -331,7 +331,7 @@ class ModliteRunTime {
 				this.stack.push(Number(value1) > Number(value2) ? "1" : "0")
 			}
 
-			else if (char == binaryCodes.join) {
+			else if (char == binaryCodes["join"]) {
 				const string2 = this.stack.pop()
 				const string1 = this.stack.pop()
 
@@ -340,13 +340,13 @@ class ModliteRunTime {
 				this.stack.push(string1 + string2)
 			}
 
-			else if (char == binaryCodes.not) {
+			else if (char == binaryCodes["not"]) {
 				const bool = this.stack.pop()
 
 				this.stack.push(bool == "0" ? "1" : "0")
 			}
 
-			else if (char == binaryCodes.and) {
+			else if (char == binaryCodes["and"]) {
 				const value2 = this.stack.pop()
 				const value1 = this.stack.pop()
 
@@ -355,7 +355,7 @@ class ModliteRunTime {
 				this.stack.push(value1 == "1" && value2 == "1")
 			}
 
-			else if (char == binaryCodes.or) {
+			else if (char == binaryCodes["or"]) {
 				const value2 = this.stack.pop()
 				const value1 = this.stack.pop()
 
