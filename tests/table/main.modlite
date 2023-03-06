@@ -1,11 +1,11 @@
 import { print error deleteTable } from "StandardLibrary"
 
 function main() void {
-	var a [[[string]]]
+	var a:[[[string]]]
 
 	a = []
 
-	a.b = []
+	a["b"] = []
 
 	a.b.c = []
 

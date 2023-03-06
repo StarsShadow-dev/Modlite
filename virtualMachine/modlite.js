@@ -1,5 +1,5 @@
 /*
-	RunTime version 17
+	RunTime version 19
 
 	For JavaScript.
 	Can run a web browser or node.
@@ -108,6 +108,17 @@ class ModliteRunTime {
 
 			delete this.tables[tableID]
 		},
+		["MLSL:existsInTable"]: () => {
+			const ID = this.stack.pop()
+			const tableID = this.stack.pop()
+
+			this.stack.push(this.tables[tableID][ID] ? "1" : "0")
+		},
+		["MLSL:tableSize"]: () => {
+			const tableID = this.stack.pop()
+
+			this.stack.push(Object.keys(this.tables[tableID]).length)
+		},
 	}
 	tableCount = 0
 	tables = {}
@@ -212,7 +223,7 @@ class ModliteRunTime {
 			
 			else if (char == binaryCodes["jump"]) {
 				const location = charToBaseTen(this.stack.pop())
-				console.log("jump", location)
+				// console.log("jump", location)
 				this.index = location
 				continue
 			}
@@ -352,7 +363,7 @@ class ModliteRunTime {
 
 				// console.log("and", value1, value2)
 
-				this.stack.push(value1 == "1" && value2 == "1")
+				this.stack.push(String(value1 == "1" && value2 == "1"))
 			}
 
 			else if (char == binaryCodes["or"]) {
@@ -361,7 +372,7 @@ class ModliteRunTime {
 
 				// console.log("or", value1, value2)
 
-				this.stack.push(value1 == "1" || value2 == "1")
+				this.stack.push(String(value1 == "1" || value2 == "1"))
 			}
 			
 			else {

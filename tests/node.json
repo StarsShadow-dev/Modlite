@@ -1,66 +1,66 @@
 {
 	"createInput": {
-		"type": "exposedFunction",
+		"type": "ExposedFunction",
 		"ID": "Node:createInput",
 		"args": [
 			{
 				"name": "onInput",
-				"type": "function",
+				"type": "Function",
 				"args": [
 					{
 						"name": "line",
-						"type": "string"
+						"type": "String"
 					}
 				],
-				"return": "void"
+				"return": "Void"
 			}
 		],
-		"return": "void"
+		"return": "Void"
 	},
 	"removeInput": {
-		"type": "exposedFunction",
+		"type": "ExposedFunction",
 		"ID": "Node:removeInput",
 		"args": [],
-		"return": "void"
+		"return": "Void"
 	},
 	"writeToInput": {
-		"type": "exposedFunction",
+		"type": "ExposedFunction",
 		"ID": "Node:writeToInput",
 		"args": [
 			{
 				"name": "text",
-				"type": "string"
+				"type": "String"
 			}
 		],
-		"return": "void"
+		"return": "Void"
 	},
 	"promptInput": {
-		"type": "exposedFunction",
+		"type": "ExposedFunction",
 		"ID": "Node:promptInput",
 		"args": [],
-		"return": "void"
+		"return": "Void"
 	},
 	"clearInput": {
-		"type": "exposedFunction",
+		"type": "ExposedFunction",
 		"ID": "Node:clearInput",
 		"args": [],
-		"return": "void"
+		"return": "Void"
 	},
 	"setTimeout": {
-		"type": "exposedFunction",
+		"type": "ExposedFunction",
 		"ID": "Node:setTimeout",
 		"args": [
 			{
 				"name": "onInput",
-				"type": "function",
+				"type": "Function",
 				"args": [],
-				"return": "void"
+				"return": "Void"
 			},
 			{
 				"name": "time",
-				"type": "number"
+				"type": "Number"
 			}
 		],
-		"return": "void"
+		"return": "Void"
 	}
 }

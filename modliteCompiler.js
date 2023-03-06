@@ -22,6 +22,7 @@ const Modlite_compiler = {
 		"false",
 		"as",
 		"class",
+		"var",
 	],
 	
 	binaryCodes: {
@@ -400,12 +401,26 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 			} else if (token.value == "}") {
 				return build
 			} else if (token.value == "[") {
-				const value = Modlite_compiler.parse(context, tokens, false, "]")
+				const prior = build.pop()
 
-				push_to_build({
-					type: "table",
-					value: value,
-				})
+				if (prior) {
+					if (prior.type != "word") err("invalid memberAccess")
+
+					const memberAccess = Modlite_compiler.parse(context, tokens, false)
+
+					push_to_build({
+						type: "memberAccess",
+						left: [prior],
+						right: memberAccess,
+					})
+				} else {
+					const value = Modlite_compiler.parse(context, tokens, false, "]")
+
+					push_to_build({
+						type: "table",
+						value: value,
+					})
+				}
 			} else if (token.value == "]") {
 				return build
 			} else if (token.value == "!") {
@@ -436,7 +451,10 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 				push_to_build({
 					type: "memberAccess",
 					left: [prior],
-					right: next.value,
+					right: [{
+						type: "string",
+						value: next.value,
+					}],
 				})
 			} else if (token.value == "..") {
 				const parse = Modlite_compiler.parse(context, tokens, true)
@@ -504,7 +522,7 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 
 		if (inExpression) {
 			// mess
-			if (tokens[context.i] && tokens[context.i].type == "separator" && tokens[context.i].value == "(") {
+			if (tokens[context.i] && tokens[context.i].type == "separator" && (tokens[context.i].value == "(" || tokens[context.i].value == "[")) {
 				// do nothing
 			} else {
 				if (!tokens[context.i]) {
@@ -596,6 +614,10 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 	function parse_definition(token, isPublic) {
 		const name = next_token()
 
+		const colon = next_token()
+
+		if (colon.type != "separator" || colon.value != ":") err("expected colon as a separator between the name and type `var name:type`")
+
 		const variableType = parse_type()
 
 		// const type = next_token()
@@ -617,7 +639,7 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 			if (variableType.type == "separator") {
 				if (variableType.value == "[") {
 					let newType = {
-						type: "table",
+						type: "Table",
 						value: parse_type(),
 					}
 					next_token()
@@ -629,8 +651,7 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 				}
 			} else if (variableType.type == "word") {
 				return {
-					type: "simpleType",
-					value: variableType.value,
+					type: variableType.value,
 				}
 			} else {
 				err("parse_type error type = " + variableType.type)
@@ -1006,7 +1027,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 	if (logEverything) console.log("tokens:\n" + JSON.stringify(tokens, null) + "\n")
 
 	const build_in = Modlite_compiler.parse({ lineNumber: 1, level: -1, i: 0 }, tokens, false, undefined)
-	if (logEverything) console.log("build:\n" + JSON.stringify(build_in, null, 2) + "\n")
+	if (logEverything) console.log("build:\n" + JSON.stringify(build_in, null) + "\n")
 
 	let level = -1
 	let lineNumber = 0
@@ -1049,7 +1070,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				if (variables[0][thing.name]) err(`variable ${thing.name} already exists`)
 		
 				variables[0][thing.name] = {
-					type: "function",
+					type: "Function",
 					public: thing.public,
 					ID: path + " " + thing.name,
 					args: thing.args,
@@ -1210,7 +1231,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			else if (thing.type == "table") {
 				pushToAssembly(["createTable"])
 
-				types.push("table")
+				types.push({type: "Table"})
 			}
 
 			else if (thing.type == "class") {
@@ -1232,7 +1253,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 					}
 				}
 
-				types.push(thing.name)
+				types.push({type: thing.name})
 			}
 
 			else if (thing.type == "memberAccess") {
@@ -1241,16 +1262,16 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				const typelist = assemblyLoop(assembly, thing.left, "memberAccess", buildType, ["expectValues"])
 
 				if (thing.left[0].type == "memberAccess") {
-					pushToAssembly(["push", String(thing.right)])
+					assemblyLoop(assembly, thing.right, "memberAccess", buildType, ["expectValues"])
 				} else {
-					const variable = getVariable(typelist[0].value)
+					const variable = getVariable(typelist[0].type)
 
 					if (variable && variable.type == "class") {
-						if (!variable.data[thing.right]) err(`class ${typelist[0].value} does not have a member named ${thing.right}`)
+						if (!variable.data[thing.right[0]]) err(`class ${typelist[0].type} does not have a member named ${thing.right}`)
 
 						pushToAssembly(["push", String(variable.data[thing.right].index)])
 					} else {
-						pushToAssembly(["push", String(thing.right)])
+						assemblyLoop(assembly, thing.right, "memberAccess", buildType, ["expectValues"])
 					}
 				}
 
@@ -1259,12 +1280,20 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				types.push(typelist[0])
 			}
 			
-			else if (thing.type == "string" || thing.type == "number") {
+			else if (thing.type == "string") {
 				if (!flags.includes("expectValues")) err(`unexpected ${thing.type}`)
 
 				pushToAssembly(["push", String(thing.value)])
 
-				types.push(thing.type)
+				types.push({type: "String"})
+			}
+
+			else if (thing.type == "number") {
+				if (!flags.includes("expectValues")) err(`unexpected ${thing.type}`)
+
+				pushToAssembly(["push", String(thing.value)])
+
+				types.push({type: "Number"})
 			}
 			
 			else if (thing.type == "bool") {
@@ -1272,7 +1301,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 				pushToAssembly(["push", thing.value == true ? "1" : "0"])
 
-				types.push(thing.type)
+				types.push({type: "Bool"})
 			}
 
 			else if (thing.type == "assignment") {
@@ -1290,7 +1319,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				const typelist = assemblyLoop(assembly, thing.right, "assignment_right", buildType, ["expectValues"])
 
 				if (thing.left[0].type == "word") {
-					checkType(variable.type, typelist)
+					checkType(variable.type, typelist[0])
 
 					if (variable.global) {
 						pushToAssembly(["setGlobal", String(variable.index)])
@@ -1300,7 +1329,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 					variable.initialized = true
 				} else if (thing.left[0].type == "memberAccess") {
-					checkType(memberAccessTypelist[0], typelist, thing.left)
+					checkType(memberAccessTypelist[0], typelist[0], thing.left)
 
 					pushToAssembly(["setTable"])
 				}
@@ -1314,8 +1343,10 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				const variable = getVariable(thing.value)
 				if (!variable) err("variable " + thing.value + " does not exist")
 
-				if (variable.type == "function") {
+				if (variable.type == "Function") {
 					pushToAssembly(["push", "*" + variable.ID])
+
+					types.push({type: variable.type})
 				} else {
 					if (variable.global) {
 						pushToAssembly(["getGlobal", String(variable.index)])
@@ -1323,9 +1354,9 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 						if (!variable.initialized) err("variable " + thing.value + " not initialized")
 						pushToAssembly(["get", String(variable.index)])
 					}
-				}
 
-				types.push(variable.type)
+					types.push(variable.type)
+				}
 			}
 			
 			else if (thing.type == "call") {
@@ -1335,7 +1366,6 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 					name = thing.name.value
 					variable = getVariable(name)
 				} else if (thing.name.type == "memberAccess") {
-					console.log(variables)
 					err("not supported")
 				}
 
@@ -1343,13 +1373,13 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 				if (!variable) err(`(call) variable ${name} does not exist`)
 
-				if (variable.type == "function" || variable.type == "exposedFunction") {
+				if (variable.type == "Function" || variable.type == "ExposedFunction") {
 
 					if (buildType == "debug") debugLog(`call ${variable.type} ID: ${variable.ID} (${thing.lineNumber})`)
 
 					let typelist
 
-					if (variable.type == "exposedFunction") {
+					if (variable.type == "ExposedFunction") {
 						typelist = assemblyLoop(assembly, thing.args, "call", buildType, ["expectValues"])
 						pushToAssembly(["push", variable.ID])
 						pushToAssembly(["externalJump"])
@@ -1362,24 +1392,35 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 						pushToAssembly(["@" + return_location])
 					}
 
-					checkArguments(name, typelist, variable.args)
+					if (typelist.length > variable.args.length) err(`too many arguments for ${name} requires ${variable.args.length}`)
+					if (typelist.length < variable.args.length) err(`not enough arguments for ${name} requires ${variable.args.length}`)
 
-					if (variable.type == "function" && variable.return != "void" && flags.includes("expectValues")) {
+					for (let i = 0; i < typelist.length; i++) {
+						const expectedArgument = variable.args[i];
+						const actualType = typelist[i];
+			
+						// if this argument can take anything just continue
+						if (expectedArgument.type == "Any") continue
+
+						checkType(expectedArgument, actualType)
+					}
+
+					if (variable.type == "Function" && variable.return != "Void" && flags.includes("expectValues")) {
 						pushToAssembly(["getGlobal", "0"])
 					}
 
 					// if the exposedFunction returns something pop the return value off because it is not being used
-					if (variable.type == "exposedFunction" && variable.return != "void" && !flags.includes("expectValues")) {
+					if (variable.type == "ExposedFunction" && variable.return != "Void" && !flags.includes("expectValues")) {
 						pushToAssembly(["pop", "1"])
 					}
 
-					types.push(variable.return)
+					types.push({type: variable.return})
 				} else if (variable.type == "class") {
 					pushToAssembly(["createTable"])
 
-					types.push(name)
+					types.push({type: name})
 				} else {
-					err(`variable ${name} is not a function or class`)
+					err(`variable ${name} is not a Function or class`)
 				}
 			}
 
@@ -1396,7 +1437,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 					pushToAssembly(["divide"])
 				}
 
-				types.push("number")
+				types.push({type: "Number"})
 			}
 
 
@@ -1405,7 +1446,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				assemblyLoop(assembly, thing.right, "equivalent", buildType, ["expectValues"])
 				pushToAssembly(["equivalent"])
 
-				types.push("bool")
+				types.push({type: "Bool"})
 			}
 
 			else if (thing.type == "notEquivalent") {
@@ -1414,7 +1455,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				pushToAssembly(["equivalent"])
 				pushToAssembly(["not"])
 				
-				types.push("bool")
+				types.push({type: "Bool"})
 			}
 
 			else if (thing.type == "greaterThan") {
@@ -1422,7 +1463,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				assemblyLoop(assembly, thing.right, "greaterThan", buildType, ["expectValues"])
 				pushToAssembly(["greaterThan"])
 
-				types.push("bool")
+				types.push({type: "Bool"})
 			}
 
 			// lessThan is just greaterThan in reverse
@@ -1431,7 +1472,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				assemblyLoop(assembly, thing.left, "lessThan", buildType, ["expectValues"])
 				pushToAssembly(["greaterThan"])
 
-				types.push("bool")
+				types.push({type: "Bool"})
 			}
 
 			else if (thing.type == "join") {
@@ -1439,7 +1480,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				assemblyLoop(assembly, thing.right, "join", buildType, ["expectValues"])
 				pushToAssembly(["join"])
 
-				types.push("string")
+				types.push({type: "String"})
 			}
 
 			else if (thing.type == "if") {
@@ -1449,7 +1490,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				const typelist = assemblyLoop(assembly, thing.condition, "if", buildType, ["expectValues"])
 
 				if (typelist.length != 1) err("if statements require 1 bool")
-				if (typelist[0] != "bool") err(`if statement got type ${typelist[0]} but expected type bool`)
+				if (typelist[0].type != "Bool") err(`if statement got type ${typelist[0].type} but expected type Bool`)
 
 				if (thing.falseCodeBlock) {
 					pushToAssembly(["push", "*" + if_true])
@@ -1601,51 +1642,30 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 		return count
 	}
 
-	function checkArguments(name, typelist, expectedArguments) {
-		if (typelist.length > expectedArguments.length) err(`too many arguments for ${name} requires ${expectedArguments.length}`)
-		if (typelist.length < expectedArguments.length) err(`not enough arguments for ${name} requires ${expectedArguments.length}`)
-
-		for (let i = 0; i < typelist.length; i++) {
-			const expectedArgument = expectedArguments[i];
-			let actualType = typelist[i];
-
-			// if this argument can take anything just continue
-			if (expectedArgument.type == "any") continue
-
-			if (actualType != expectedArgument.type) err(`${name} argument ${i+1} expected type ${expectedArgument.type} but got type ${actualType}`)
-		}
-	}
-
 	function checkType(expected, actual, memberAccess) {
 		// console.log("-------- checkType: --------")
 		// console.log("expected", expected)
 		// console.log("actual", actual)
 		// console.log("memberAccess", JSON.stringify(memberAccess, null, 2))
 
-		if (!memberAccess || expected.type == "simpleType") {
-			if (expected.value == "any") return
+		if (expected.type == "any") return
 
-			const variable = getVariable(expected.value)
+		if (memberAccess && expected.type == "Table") {
 
-			if (variable && variable.type == "class") {
-				return
-			}
-
-			if (expected.type == "table") {
-				if (expected.type != actual[0]) err(`can not set type ${actual[0]} to type ${expected.type}`)
-			} else {
-				if (expected.value != actual[0]) err(`can not set type ${actual[0]} to type ${expected.value}`)
-			}
-		} else if (expected.type == "table") {
-
-			if (memberAccess[0].type == "word") {
+			if (memberAccess[0].type != "Table") {
 				return
 			}
 
 			// console.log("in")
 			checkType(expected.value, actual, memberAccess[0].left)
 		} else {
-			err("checkType error expected.type = " + expected.type)
+			const variable = getVariable(expected.type)
+
+			if (variable && variable.type == "class") {
+				return
+			}
+
+			if (expected.type != actual.type) err(`expected type ${expected.type} but got type ${actual.type}`)
 		}
 	}
 

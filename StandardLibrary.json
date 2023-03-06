@@ -1,72 +1,98 @@
 {
 	"print": {
-		"type": "exposedFunction",
+		"type": "ExposedFunction",
 		"ID": "MLSL:print",
 		"args": [
 			{
 				"name": "message",
-				"type": "any"
+				"type": "Any"
 			}
 		],
-		"return": "void"
+		"return": "Void"
 	},
 	"error": {
-		"type": "exposedFunction",
+		"type": "ExposedFunction",
 		"ID": "MLSL:error",
 		"args": [
 			{
 				"name": "message",
-				"type": "any"
+				"type": "Any"
 			}
 		],
-		"return": "never"
+		"return": "Never"
 	},
 	"startsWith": {
-		"type": "exposedFunction",
+		"type": "ExposedFunction",
 		"ID": "MLSL:startsWith",
 		"args": [
 			{
 				"name": "string",
-				"type": "string"
+				"type": "String"
 			},
 			{
 				"name": "startString",
-				"type": "string"
+				"type": "String"
 			}
 		],
-		"return": "bool"
+		"return": "Bool"
 	},
 	"toNumber": {
-		"type": "exposedFunction",
+		"type": "ExposedFunction",
 		"ID": "MLSL:toNumber",
 		"args": [
 			{
 				"name": "string",
-				"type": "string"
+				"type": "String"
 			}
 		],
-		"return": "number"
+		"return": "Number"
 	},
 	"asString": {
-		"type": "exposedFunction",
+		"type": "ExposedFunction",
 		"ID": "MLSL:asString",
 		"args": [
 			{
 				"name": "number",
-				"type": "number"
+				"type": "Number"
 			}
 		],
-		"return": "string"
+		"return": "String"
 	},
 	"deleteTable": {
-		"type": "exposedFunction",
+		"type": "ExposedFunction",
 		"ID": "MLSL:deleteTable",
 		"args": [
 			{
 				"name": "ID",
-				"type": "table"
+				"type": "Table"
 			}
 		],
-		"return": "void"
+		"return": "Void"
+	},
+	"existsInTable": {
+		"type": "ExposedFunction",
+		"ID": "MLSL:existsInTable",
+		"args": [
+			{
+				"name": "tableID",
+				"type": "Table"
+			},
+			{
+				"name": "ID",
+				"type": "String"
+			}
+		],
+		"return": "Bool"
+	},
+	"tableSize": {
+		"type": "ExposedFunction",
+		"ID": "MLSL:tableSize",
+		"args": [
+			{
+				"name": "table",
+				"type": "Table"
+			}
+		],
+		"return": "Number"
 	}
 }

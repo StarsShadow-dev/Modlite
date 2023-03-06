@@ -1,7 +1,7 @@
 import { print } from "StandardLibrary"
 
 function main() void {
-	var loopNumber number
+	var loopNumber:Number
 
 	print("loop test")
 	
@@ -9,5 +9,5 @@ function main() void {
 	while (true) {
 		loopNumber = loopNumber + 1
 		print("loopNumber " .. loopNumber)
-	}
+	}*/
 }
