@@ -1,6 +1,6 @@
 import { print } from "StandardLibrary"
 
-function main() void {
+function main() Void {
 
 	if (10 == 10) {
 		print("10 == 10")

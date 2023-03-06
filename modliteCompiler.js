@@ -375,12 +375,13 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 			if (token.value == "(") {
 				const past = build.pop()
 	
-				if (!past) err("unexpected (")
+				if (!past) err("unexpected `(`")
+				if (past.type != "word") err("expected word before `(`")
 	
-				if (past.type == "word" && past.value == "case") {
-					const condition = Modlite_compiler.parse(context, tokens, false)
+				if (past.value == "case") {
+					const condition = Modlite_compiler.parse(context, tokens, false, ")")
 					next_token()
-					const codeBlock = Modlite_compiler.parse(context, tokens, false)
+					const codeBlock = Modlite_compiler.parse(context, tokens, false, "}")
 	
 					push_to_build({
 						type: "case",
@@ -391,20 +392,22 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 					push_to_build({
 						type: "call",
 						name: past,
-						args: Modlite_compiler.parse(context, tokens, false),
+						args: Modlite_compiler.parse(context, tokens, false, ")"),
 					})
 				}
 			} else if (token.value == ")") {
+				if (end != token.value) err(`expected ${end} got ${token.value}`)
 				return build
 			} else if (token.value == "{") {
 				err("unexpected {")
 			} else if (token.value == "}") {
+				if (end != token.value) err(`expected ${end} got ${token.value}`)
 				return build
 			} else if (token.value == "[") {
 				const prior = build.pop()
 
 				if (prior) {
-					if (prior.type != "word") err("invalid memberAccess")
+					if (prior.type != "word") err("memberAccess expected word before `[`")
 
 					const memberAccess = Modlite_compiler.parse(context, tokens, false)
 
@@ -422,9 +425,10 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 					})
 				}
 			} else if (token.value == "]") {
+				if (end != token.value) err(`expected ${end} got ${token.value}`)
 				return build
 			} else if (token.value == "!") {
-				err("not available " + token.value)
+				err("separator not available " + token.value)
 			}
 		}
 
@@ -446,7 +450,7 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 			} else if (token.value == ".") {
 				const next = next_token()
 
-				if (next.type != "word") err("'.' expected word")
+				if (next.type != "word") err("memberAccess expected word before `.`")
 
 				push_to_build({
 					type: "memberAccess",
@@ -593,12 +597,12 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 		}
 
 		const Return = next_token()
-		if (Return.type != "word") err("return must be a word")
+		if (Return.type != "word") err("functions must have a specified return type (if your function does not return anything specify `Void`)")
 
 		// eat the "{"
 		next_token()
 
-		const codeBlock = Modlite_compiler.parse(context, tokens, false)
+		const codeBlock = Modlite_compiler.parse(context, tokens, false, "}")
 
 		push_to_build({
 			type: "function",
@@ -616,7 +620,7 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 
 		const colon = next_token()
 
-		if (colon.type != "separator" || colon.value != ":") err("expected colon as a separator between the name and type `var name:type`")
+		if (colon.type != "separator" || colon.value != ":") err("expected colon as a separator between the name and type, example: `var myString:String`")
 
 		const variableType = parse_type()
 
@@ -645,28 +649,27 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 					next_token()
 					return newType
 				} else if (variableType.value == "]") {
-					err("tables must have a type")
+					err("tables must have an internal type")
 				} else {
-					err(variableType.value + "is not a valid separator")
+					err(variableType.value + " is not a valid separator for parse_type")
 				}
 			} else if (variableType.type == "word") {
 				return {
 					type: variableType.value,
 				}
 			} else {
-				err("parse_type error type = " + variableType.type)
+				err("parse_type error variableType.type = " + variableType.type)
 			}
 		}
 	}
 
 	function parse_import() {
 		next_token()
-		const parse = Modlite_compiler.parse(context, tokens, false)
+		const parse = Modlite_compiler.parse(context, tokens, false, "}")
 
 		const from = next_token()
 
-		if (from.type != "word") err("expected the word 'from'")
-		if (from.value != "from") err("expected the word 'from'")
+		if (from.type != "word" || from.value != "from") err("an import statement requires a location to get imports from, example: `import { print error } from \"StandardLibrary\"`")
 
 		const string = next_token()
 		if (string.type != "string") err("expected string")
@@ -696,15 +699,15 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 
 	function parse_if() {
 		next_token()
-		const condition = Modlite_compiler.parse(context, tokens, false)
+		const condition = Modlite_compiler.parse(context, tokens, false, ")")
 		next_token()
-		const trueCodeBlock = Modlite_compiler.parse(context, tokens, false)
+		const trueCodeBlock = Modlite_compiler.parse(context, tokens, false, "}")
 
 		const elseWord = next_token()
 
 		if (elseWord && elseWord.type == "word" && elseWord.value == "else") {
 			next_token()
-			const falseCodeBlock = Modlite_compiler.parse(context, tokens, false)
+			const falseCodeBlock = Modlite_compiler.parse(context, tokens, false, "}")
 			push_to_build({
 				type: "if",
 				condition: condition,
@@ -723,7 +726,7 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 
 	function parse_switch() {
 		next_token()
-		const codeBlock = Modlite_compiler.parse(context, tokens, false)
+		const codeBlock = Modlite_compiler.parse(context, tokens, false, "}")
 
 		push_to_build({
 			type: "switch",
@@ -733,9 +736,9 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 
 	function parse_while() {
 		next_token()
-		const condition = Modlite_compiler.parse(context, tokens, false)
+		const condition = Modlite_compiler.parse(context, tokens, false, ")")
 		next_token()
-		const codeBlock = Modlite_compiler.parse(context, tokens, false)
+		const codeBlock = Modlite_compiler.parse(context, tokens, false, "}")
 
 		push_to_build({
 			type: "while",
@@ -745,17 +748,13 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 	}
 
 	function parse_return() {
-		let statement = Modlite_compiler.parse(context, tokens, true)
+		let expression = Modlite_compiler.parse(context, tokens, true)
 
-		if (statement.length == 0) err("empty return")
-
-		// if (statement[0] && statement[0].type == "word" && statement[0].value == "void") {
-		// 	statement = []
-		// }
+		if (expression.length == 0) err("return statements must always have a return value or `Void`")
 
 		push_to_build({
 			type: "return",
-			statement: statement
+			expression: expression
 		})
 	}
 
@@ -765,7 +764,7 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 		if (!name || name.type != "word") err("expected name of class")
 
 		next_token()
-		const value = Modlite_compiler.parse(context, tokens, false)
+		const value = Modlite_compiler.parse(context, tokens, false, "}")
 
 		push_to_build({
 			type: "class",
@@ -1098,7 +1097,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 							return: inClass.return,
 						}
 					} else {
-						err(`unexpected ${inClass.type} in class`)
+						err(`unexpected ${inClass.type} in class, expected definition or function`)
 					}
 				}
 				variables[0][thing.name] = {
@@ -1366,7 +1365,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 					name = thing.name.value
 					variable = getVariable(name)
 				} else if (thing.name.type == "memberAccess") {
-					err("not supported")
+					err("memberAccess call is not yet supported")
 				}
 
 				if (Modlite_compiler.reservedWords.includes(name)) err(`${name} is a reserved word`)
@@ -1521,7 +1520,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 					const Case = thing.codeBlock[index];
 					if (Case.lineNumber) lineNumber = Case.lineNumber
 					
-					if (Case.type != "case") err("not a case")
+					if (Case.type != "case") err("not a case in switch statement")
 
 					const switch_over = "switch_over" + index + " " + context.uniqueIdentifierCounter++
 
@@ -1565,15 +1564,15 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 			else if (thing.type == "return") {
 				let typelist
-				if (thing.statement[0].type == "word" && thing.statement[0].value == "void") {
+				if (thing.expression[0].type == "word" && thing.expression[0].value == "void") {
 					typelist = ["void"]
 				} else {
-					typelist = assemblyLoop(assembly, thing.statement, "return", buildType, ["expectValues"])
+					typelist = assemblyLoop(assembly, thing.expression, "return", buildType, ["expectValues"])
 				}
 
 				if (typelist[0] != context.expectedReturnType) err(`expected return type ${context.expectedReturnType} got ${typelist[0]}`)
 
-				if (thing.statement.length != 0 && context.expectedReturnType != "void") {
+				if (thing.expression.length != 0 && context.expectedReturnType != "void") {
 					pushToAssembly(["setGlobal", "0"])
 				}
 				// for now just jump to the end of the function
@@ -1584,7 +1583,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			}
 
 			else if (thing.type == "case") {
-				err("unexpected case")
+				err("case not in switch statement")
 			}
 
 			else if (thing.type == "compilerSetting") {
