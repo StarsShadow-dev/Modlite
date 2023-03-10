@@ -1,391 +1,210 @@
 /*
-	RunTime version 19
+	RunTime version 20
 
 	For JavaScript.
 	Can run a web browser or node.
 */
 
-const binaryCodes = {
+const binaryCodes = [
+	"jump",
+	"conditionalJump",
+	"notConditionalJump",
+	"externalJump",
 
-	//
-	// stack management
-	//
+	"transfer",
 
-	push: "a",
-	// remove most recent thing on the stack
-	pop: "b",
-	addRegisters: "c",
-	removeRegisters: "d",
-	// set the value of a register
-	set: "e",
-	// get the value of a register
-	get: "f",
-	// set the value of a global
-	setGlobal: "g",
-	// get the value of a global
-	getGlobal: "h",
+	// The location register
+	"loadR0",
+	"storeR0",
 
-	//
-	// jumping
-	//
+	// value 1 register
+	"transferToR1",
+	"transferFromR1",
 
-	// jump to a location (takes a single character off the stack. The place to jump into is determined by this characters charCode)
-	jump: "i",
-	// jump but only if a condition is true
-	conditionalJump: "j",
-	// jump but only if a condition is false
-	notConditionalJump: "k",
-	// jumps to code outside of the binary
-	externalJump: "l",
+	// value 2 register
+	"transferToR2",
+	"transferFromR2",
 
-	//
-	// high-level data storage
-	//
+	"add",
+	"subtract",
+	"multiply",
+	"divide",
 
-	createTable: "m",
-	removeTable: "n",
-	setTable: "o",
-	getTable: "p",
-
-	//
-	// math
-	//
-
-	add: "q",
-	subtract: "r",
-	multiply: "s",
-	divide: "t",
-
-	//
-	// other
-	//
-	
-	// check to see if two values are equivalent
-	equivalent: "u",
-	greaterThan: "v",
-	// join to strings
-	join: "w",
-	// reverse a bool (true = false and false = true)
-	not: "x",
-	and: "y",
-	or: "z",
-	// break character
-	break: "\uFFFF",
-}
+	"equivalent",
+	"greaterThan",
+]
 
 class ModliteRunTime {
-	// add the MLSL (Modlite standard library) this includes functions like print, error and startsWith
-	exposedFunctions = {
-		["MLSL:print"]: () => {
-			console.log(this.stack.pop())
-		},
-		["MLSL:error"]: () => {
-			console.error("[error]", this.stack.pop(), "\n")
-			console.error("index", this.index)
-			console.error("arp", this.arp)
-			console.error("stack", this.stack)
-			console.error("tables", this.tables)
-			console.error("program ending early\n")
-	
-			this.reset()
-		},
-		["MLSL:startsWith"]: () => {
-			const startString = this.stack.pop()
-			const string = this.stack.pop()
-			this.stack.push(string.startsWith(startString) ? "1" : "0")
-		},
-		["MLSL:toNumber"]: () => {
-			const string = this.stack.pop()
-			this.stack.push(String(Number(string)))
-		},
-		["MLSL:asString"]: () => {
-			// nothing needs to happen in JavaScript
-		},
-		["MLSL:deleteTable"]: () => {
-			const tableID = this.stack.pop()
+	exposedFunctions = {}
 
-			// console.log("deleteTable", tableID)
+	instructionPointer
 
-			delete this.tables[tableID]
-		},
-		["MLSL:existsInTable"]: () => {
-			const ID = this.stack.pop()
-			const tableID = this.stack.pop()
+	size
+	data
 
-			this.stack.push(this.tables[tableID][ID] ? "1" : "0")
-		},
-		["MLSL:tableSize"]: () => {
-			const tableID = this.stack.pop()
+	registers
 
-			this.stack.push(Object.keys(this.tables[tableID]).length)
-		},
+	constructor(size) {
+		this.instructionPointer = 0
+
+		this.size = size
+		this.data = new DataView(new ArrayBuffer(size))
+
+		this.registers = new DataView(new ArrayBuffer(12))
 	}
-	tableCount = 0
-	tables = {}
 
-	index = 0
-	binary = ""
-	stack = []
-	arp = 0 // activation record pointer
-	reset = () => {
-		this.tableCount = 0
-		this.tables = {}
+	deepReset() {
+		this.instructionPointer = 0
+		this.data = new DataView(new ArrayBuffer(this.size))
 
-		this.index = 0
-		this.binary = ""
-		this.stack = []
-		this.arp = 0
+		this.registers = new DataView(new ArrayBuffer(12))
 	}
-	run = () => {
-		const goToBreak = () => {
-			let past = ""
-			while (true) {
-				const char = this.binary[++this.index];
-				if (!char || char == binaryCodes["break"]) {
-					return past
+
+	logData() {
+		console.log("logData:")
+
+		let i = 0
+		let argCounter = 0
+
+		while (i < this.data.byteLength) {
+			const byte = this.data.getUint8(i)
+
+			if (argCounter > 0) {
+				console.log(`|    [${byteToHex(byte)}]`)
+				argCounter--
+			} else {
+				if (binaryCodes[byte]) {
+					console.log(`[${byteToHex(byte)}] - ${binaryCodes[byte]}`)
+					if (binaryCodes[byte] == "loadR0") {
+						argCounter = 4
+					}
 				} else {
-					past += char
+					console.log(`[${byteToHex(byte)}] - ???`)
 				}
 			}
+
+			i++
 		}
+	}
 
-		while (this.index < this.binary.length) {
-			const char = this.binary[this.index];
+	run() {
+		while (this.instructionPointer < this.data.byteLength) {
+			const byte = this.data.getUint8(this.instructionPointer)
 
-			// uncomment this to watch the stack change while running
-			// for (const key in binaryCodes) {
-			// 	if (binaryCodes[key] == char) {
-			// 		console.log(this.index, key, "stack:", JSON.stringify(this.stack))
-			// 		break
-			// 	}
-			// }
+			console.log(`[${byteToHex(byte)}] - ${binaryCodes[byte]}`)
 
-			if (char == binaryCodes["push"]) {
-				const data = goToBreak()
+			if (binaryCodes[byte] == "jump") {
+				const location = this.registers.getUint32(0)
 
-				// console.log("push", `${data}(${charToBaseTen(data)})`)
+				console.log("jump", location)
 
-				this.stack.push(data)
-			}
-			
-			else if (char == binaryCodes["pop"]) {
-				const amount = Number(goToBreak())
+				if (location == 4294967295) return
 
-				// console.log("pop", amount)
-
-				this.stack.splice(this.stack.length - amount, amount)
-			}
-			
-			else if (char == binaryCodes["addRegisters"]) {
-				this.stack.push(this.arp)
-				this.arp = this.stack.length-1
-				const amount = Number(goToBreak())
-
-				// console.log("addRegisters", amount)
-
-				for (let i = 0; i < amount; i++) {
-					this.stack.push(undefined)
-				}
-			}
-			
-			else if (char == binaryCodes["removeRegisters"]) {
-				const amount = Number(goToBreak())
-				// console.log("removeRegisters", amount)
-				this.stack.splice(this.stack.length - amount, amount)
-				this.arp = this.stack.pop()
-			}
-			
-			else if (char == binaryCodes["set"]) {
-				const int = goToBreak()
-				const value = this.stack.pop()
-				// console.log("set", int, value)
-				this.stack[Number(this.arp)+Number(int)] = value
-			}
-			
-			else if (char == binaryCodes["get"]) {
-				const int = goToBreak()
-				// console.log("get", int, this.stack[Number(this.arp)+Number(int)])
-				this.stack.push(this.stack[Number(this.arp)+Number(int)])
-			}
-
-			else if (char == binaryCodes["setGlobal"]) {
-				const int = goToBreak()
-				const value = this.stack.pop()
-				// console.log("setGlobal", int, value, this.stack[Number(int)])
-				this.stack[Number(int)] = value
-			}
-			
-			else if (char == binaryCodes["getGlobal"]) {
-				const int = goToBreak()
-				// console.log("getGlobal", int, this.stack[Number(int)])
-				this.stack.push(this.stack[Number(int)])
-			}
-			
-			else if (char == binaryCodes["jump"]) {
-				const location = charToBaseTen(this.stack.pop())
-				// console.log("jump", location)
-				this.index = location
+				this.instructionPointer = location
 				continue
 			}
-			
-			else if (char == binaryCodes["conditionalJump"]) {
-				const location = charToBaseTen(this.stack.pop())
-				const condition = this.stack.pop()
-				// console.log("conditionalJump", location, condition)
-				if (condition == "1") {
-					this.index = location
+			else if (binaryCodes[byte] == "conditionalJump") {
+				const location = this.registers.getUint32(0)
+				const condition = this.registers.getUint32(4) == 1
+
+				console.log("conditionalJump", location, condition)
+
+				if (condition) {
+					if (location == 4294967295) return
+
+					this.instructionPointer = location
 					continue
 				}
 			}
+			else if (binaryCodes[byte] == "notConditionalJump") {
+				const location = this.registers.getUint32(0)
+				const condition = this.registers.getUint32(4) == 1
 
-			else if (char == binaryCodes["notConditionalJump"]) {
-				const location = charToBaseTen(this.stack.pop())
-				const condition = this.stack.pop()
-				// console.log("notConditionalJump", location, condition)
-				if (condition == "0") {
-					this.index = location
+				console.log("notNonditionalJump", location, condition)
+
+				console.log("register is", this.registers.getUint32(4))
+
+				if (!condition) {
+					if (location == 4294967295) return
+
+					this.instructionPointer = location
 					continue
 				}
 			}
-			
-			else if (char == binaryCodes["externalJump"]) {
-				const name = this.stack.pop()
-				// console.log("externalJump", name)
-				this.exposedFunctions[name]()
+			else if (binaryCodes[byte] == "externalJump") {
+				console.log("yay an externalJump")
 			}
 
-			else if (char == binaryCodes["createTable"]) {
-				// console.log("createTable", this.tableCount)
-
-				this.tables[this.tableCount] = {}
-				this.stack.push(String(this.tableCount++))
-			}
-
-			else if (char == binaryCodes["removeTable"]) {
-				const tableID = this.stack.pop()
-
-				// console.log("removeTable", tableID)
+			else if (binaryCodes[byte] == "transfer") {
 				
-				delete this.tables[tableID]
 			}
+			else if (binaryCodes[byte] == "loadR0") {
+				this.registers.setUint32(0, this.data.getUint32(++this.instructionPointer))
+				this.instructionPointer += 3
 
-			else if (char == binaryCodes["setTable"]) {
-				const value = this.stack.pop()
-				const ID = this.stack.pop()
-				const tableID = this.stack.pop()
-
-				// console.log("setTable", tableID, ID, value, this.tables)
-
-				this.tables[tableID][ID] = value
+				console.log("loadR0", this.registers.getUint32(0))
 			}
+			// else if (binaryCodes[byte] == "storeR0") {
+			// }
 
-			else if (char == binaryCodes["getTable"]) {
-				const ID = this.stack.pop()
-				const tableID = this.stack.pop()
+			else if (binaryCodes[byte] == "transferToR1") {
+				const location = this.registers.getUint32(0)
+				console.log("before transfer to R1, location: ", location)
 
-				// console.log("getTable", tableID, ID, this.tables)
+				this.registers.setUint32(4, this.data.getUint32(location))
 
-				this.stack.push(this.tables[tableID][ID])
+				console.log("transferToR1", this.registers.getUint32(4))
 			}
+			else if (binaryCodes[byte] == "transferFromR1") {
 
-			else if (char == binaryCodes["add"]) {
-				const number2 = this.stack.pop()
-				const number1 = this.stack.pop()
-
-				// console.log("add", number1, number2)
-
-				this.stack.push(String(Number(number1) + Number(number2)))
-			}
-
-			else if (char == binaryCodes["subtract"]) {
-				const number2 = this.stack.pop()
-				const number1 = this.stack.pop()
-
-				// console.log("subtract", number1, number2)
-
-				this.stack.push(String(Number(number1) - Number(number2)))
-			}
-
-			else if (char == binaryCodes["multiply"]) {
-				const number2 = this.stack.pop()
-				const number1 = this.stack.pop()
-
-				// console.log("multiply", number1, number2)
-
-				this.stack.push(String(Number(number1) * Number(number2)))
-			}
-
-			else if (char == binaryCodes["divide"]) {
-				const number2 = this.stack.pop()
-				const number1 = this.stack.pop()
-
-				// console.log("divide", number1, number2)
-
-				this.stack.push(String(Number(number1) / Number(number2)))
-			}
-
-			else if (char == binaryCodes["equivalent"]) {
-				const value2 = this.stack.pop()
-				const value1 = this.stack.pop()
-
-				// console.log("equivalent", value1, value2)
-
-				this.stack.push(value1 == value2 ? "1" : "0")
-			}
-
-			else if (char == binaryCodes["greaterThan"]) {
-				const value2 = this.stack.pop()
-				const value1 = this.stack.pop()
-
-				// console.log("greaterThan", value1, value2, Number(value1) > Number(value2))
-
-				this.stack.push(Number(value1) > Number(value2) ? "1" : "0")
-			}
-
-			else if (char == binaryCodes["join"]) {
-				const string2 = this.stack.pop()
-				const string1 = this.stack.pop()
-
-				// console.log("join", string1, string2)
-
-				this.stack.push(string1 + string2)
-			}
-
-			else if (char == binaryCodes["not"]) {
-				const bool = this.stack.pop()
-
-				this.stack.push(bool == "0" ? "1" : "0")
-			}
-
-			else if (char == binaryCodes["and"]) {
-				const value2 = this.stack.pop()
-				const value1 = this.stack.pop()
-
-				// console.log("and", value1, value2)
-
-				this.stack.push(String(value1 == "1" && value2 == "1"))
-			}
-
-			else if (char == binaryCodes["or"]) {
-				const value2 = this.stack.pop()
-				const value1 = this.stack.pop()
-
-				// console.log("or", value1, value2)
-
-				this.stack.push(String(value1 == "1" || value2 == "1"))
 			}
 			
-			else {
-				throw `unexpected character: '${char}'(${charToBaseTen(char)}) at ${this.index}`
+			else if (binaryCodes[byte] == "transferToR2") {
+				const location = this.registers.getUint32(0)
+
+				this.registers.setUint32(8, this.data.getUint32(location))
+
+				console.log("transferToR2", this.R1.getUint32(4))
+			}
+			else if (binaryCodes[byte] == "transferFromR2") {
 			}
 
-			this.index++
+			else if (binaryCodes[byte] == "add") {
+			}
+			else if (binaryCodes[byte] == "subtract") {
+			}
+			else if (binaryCodes[byte] == "multiply") {
+			}
+			else if (binaryCodes[byte] == "divide") {
+			}
+
+			else if (binaryCodes[byte] == "equivalent") {
+			}
+			else if (binaryCodes[byte] == "greaterThan") {
+
+			}
+
+			else {
+				throw `unknown instruction ${byteToHex(byte)}`
+			}
+
+			this.instructionPointer++
 		}
 	}
 }
 
-function charToBaseTen(char) {
-	return Number(char.charCodeAt(0).toString(10));
+function getNumberFrom4ByteCharacters(a, b, c, d) {
+	return a << 24 + b << 16 + c << 8 + d
+}
+
+function byteToHex(byte) {
+	let hex = byte.toString(16)
+
+	if (hex.length < 2) {
+		hex = hex + "0"
+	}
+
+	return "0x" + hex
 }
 
 // uncomment this when using node

@@ -1,8 +1,0 @@
-import { print } from "StandardLibrary"
-import { test globalVariable } from "test.modlite"
-
-function main() void {
-	globalVariable = "testing1"
-	print("globalVariable in main: " .. globalVariable)
-	test()
-}

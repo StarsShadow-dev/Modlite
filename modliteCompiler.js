@@ -1,4 +1,4 @@
-// Modlite Rewrite 13
+// Modlite Compiler Rewrite 13
 
 /* 
 	A work in progress programming language.
@@ -26,72 +26,34 @@ const Modlite_compiler = {
 	],
 	
 	binaryCodes: {
+		"jump": 0,
+		"conditionalJump": 1,
+		"notConditionalJump": 2,
+		"externalJump": 3,
+	
+		"transfer": 4,
+	
+		"loadR0": 5,
+		"storeR0": 6,
+	
+		"transferToR1": 7,
+		"transferFromR1": 8,
+	
+		"transferToR2": 9,
+		"transferFromR2": 10,
+	
+		"add": 11,
+		"subtract": 12,
+		"multiply": 13,
+		"divide": 14,
+	
+		"equivalent": 15,
+		"greaterThan": 16,
+	}
+}
 
-		//
-		// stack management
-		//
-	
-		push: "a",
-		// remove most recent thing on the stack
-		pop: "b",
-		addRegisters: "c",
-		removeRegisters: "d",
-		// set the value of a register
-		set: "e",
-		// get the value of a register
-		get: "f",
-		// set the value of a global
-		setGlobal: "g",
-		// get the value of a global
-		getGlobal: "h",
-	
-		//
-		// jumping
-		//
-	
-		// jump to a location (takes a single character off the stack. The place to jump into is determined by this characters charCode)
-		jump: "i",
-		// jump but only if a condition is true
-		conditionalJump: "j",
-		// jump but only if a condition is false
-		notConditionalJump: "k",
-		// jumps to code outside of the binary
-		externalJump: "l",
-	
-		//
-		// high-level data storage
-		//
-	
-		createTable: "m",
-		removeTable: "n",
-		setTable: "o",
-		getTable: "p",
-	
-		//
-		// math
-		//
-	
-		add: "q",
-		subtract: "r",
-		multiply: "s",
-		divide: "t",
-	
-		//
-		// other
-		//
-		
-		// check to see if two values are equivalent
-		equivalent: "u",
-		greaterThan: "v",
-		// join to strings
-		join: "w",
-		// reverse a bool (true = false and false = true)
-		not: "x",
-		and: "y",
-		or: "z",
-		// break character
-		break: "\uFFFF",
-	},
+function getCharacter(string) {
+	return string.split(' ').map(char => String.fromCharCode(parseInt(char, 10))).join('');
 }
 
 // custom tokenizer/lexar
@@ -827,57 +789,60 @@ Modlite_compiler.handle_error = (error, lineNumber, level) => {
 
 Modlite_compiler.assemblyToOperationCode = (assembly) => {
 	let index = 0
-	let opCode = ""
+
+	let dataLength = 0
+	let buffer = new ArrayBuffer(1024)
+	let data = new DataView(buffer);
+
 	let locations = {}
+	
 	while (index < assembly.length) {
-		const instruction = assembly[index];
+		const thing = assembly[index];
 		
-		if (instruction.startsWith("@")) {
-			if (!locations[instruction.slice(1, instruction.length)]) locations[instruction.slice(1, instruction.length)] = {
+		if (thing.startsWith("@")) {
+			if (!locations[thing.slice(1, thing.length)]) locations[thing.slice(1, thing.length)] = {
 				position: 0,
 				references: []
 			}
-			locations[instruction.slice(1, instruction.length)].position = opCode.length
+			locations[thing.slice(1, thing.length)].position = dataLength
 		}
 		
-		else if (
-			instruction == "push" ||
-			instruction == "pop" ||
-			instruction == "addRegisters" ||
-			instruction == "removeRegisters" ||
-			instruction == "set" ||
-			instruction == "get" ||
-			instruction == "setGlobal" ||
-			instruction == "getGlobal"
-		) {
-			opCode += Modlite_compiler.binaryCodes[instruction] + getNextInstruction() + Modlite_compiler.binaryCodes.break
+		else if (thing.startsWith("!")) {
+			const instructionName = thing.slice(1, thing.length)
+			if (Object.keys(Modlite_compiler.binaryCodes).includes(instructionName)) {
+				data.setUint8(dataLength++, Modlite_compiler.binaryCodes[instructionName])
+			} else {
+				throw "unknown assembly instruction " + instructionName
+			}
+
+		}
+
+		else if (thing.startsWith("&")) {
+			if (!locations[thing.slice(1, thing.length)]) locations[thing.slice(1, thing.length)] = {
+				position: 0,
+				references: []
+			}
+			locations[thing.slice(1, thing.length)].references.push(dataLength + 1)
+			data.setUint8(dataLength++, 0)
+			data.setUint8(dataLength++, 0)
+			data.setUint8(dataLength++, 0)
+			data.setUint8(dataLength++, 0)
+		}
+
+		else if (thing.startsWith("$")) {
+			data.setUint8(dataLength++, thing.slice(1, thing.length).charCodeAt(0))
 		}
 		
-		else if (
-			instruction == "jump" ||
-			instruction == "conditionalJump" ||
-			instruction == "notConditionalJump" ||
-			instruction == "externalJump" ||
-			instruction == "createTable" ||
-			instruction == "removeTable" ||
-			instruction == "setTable" ||
-			instruction == "getTable" ||
-			instruction == "add" ||
-			instruction == "subtract" ||
-			instruction == "multiply" ||
-			instruction == "divide" ||
-			instruction == "equivalent" ||
-			instruction == "greaterThan" ||
-			instruction == "join" ||
-			instruction == "not"
-		) {
-			opCode += Modlite_compiler.binaryCodes[instruction]
+		else if (thing.startsWith("0x")) {
+			const string = thing.slice(2, thing.length)
+
+			data.setUint8(dataLength++, parseInt(string, 16))
 		}
 		
-		else if (instruction == "\n") {}
+		else if (thing == "\n") {}
 		
 		else {
-			throw "unknown assembly instruction " + instruction
+			throw `unknown assembly type \`${thing}\``
 		}
 
 		index++
@@ -885,38 +850,27 @@ Modlite_compiler.assemblyToOperationCode = (assembly) => {
 
 	if (logEverything) console.log("locations", JSON.stringify(locations, null, 2), "\n")
 
-	let temp = opCode.split("")
-
 	for (const key in locations) {
 		const location = locations[key]
 
 		for (let i = 0; i < location.references.length; i++) {
 			const reference = location.references[i]
-			temp[reference] = getCharacter(String(location.position))
-		}
-	}
-
-	return temp.join("")
-
-	function getNextInstruction() {
-		index++
-		const instruction = assembly[index]
-
-		if (instruction.startsWith("*")) {
-			if (!locations[instruction.slice(1, instruction.length)]) locations[instruction.slice(1, instruction.length)] = {
-				position: 0,
-				references: []
+			
+			for (var i2 = 4; i2 > 0; i2--) {
+				const byte = (location.position >> (i2 * 8)) & 0xFF
+				data.setUint8(reference+i2-2, byte)
 			}
-			locations[instruction.slice(1, instruction.length)].references.push(opCode.length + 1)
-			return "*"
 		}
-
-		return instruction
 	}
 
-	function getCharacter(string) {
-		return string.split(' ').map(char => String.fromCharCode(parseInt(char, 10))).join('');
+	let newBuffer = new ArrayBuffer(dataLength)
+	let newData = new DataView(newBuffer);
+
+	for (let i = 0; i < dataLength; i++) {
+		newData.setUint8(i, data.getUint8(i))
 	}
+
+	return newData
 }
 
 // --------
@@ -932,7 +886,7 @@ const logEverything = process.argv.includes("--log")
 
 const testBuild = process.argv.includes("--test")
 
-// const debugBuild = process.argv.includes("--debug")
+// const asAssembly = process.argv.includes("--asAssembly")
 
 if (logEverything) console.log("process.argv", process.argv)
 
@@ -949,59 +903,59 @@ Modlite_compiler.compileCode = (rootPath) => {
 	if (!conf.saveTo) throw "no saveTo in conf"
 
 	try {
-		let context = {
-			rootPath: rootPath,
-			globalCount: 1,
-			uniqueIdentifierCounter: 0,
-			testCounter: 1,
-
-			types: [],
-			recursionHistory: [],
-
-			functionId: undefined,
-			expectedReturnType: undefined,
-			setupAssembly: [
-				"push", "", "\n"
-			],
-			startAssembly: [
-				"push", "*end_of_program", "\n",
-				"push", "*" + conf.entry + " main", "\n",
-				"jump", "\n",
-			],
-			// testAssembly: [],
-			mainAssembly: [],
-		}
 		let assembly = []
-		let files = {}
-		Modlite_compiler.getAssembly(conf.entry, context, files, true)
-		if (logEverything) console.log("files:\n", JSON.stringify(files) + "\n")
-		// if (testBuild) {
-		// 	if (files[conf.entry].main && files[conf.entry].main.type == "function") {
-		// 		assembly.push("push", "*startEnd", "\n")
-		// 		assembly.push(...context.startAssembly)
-		// 		assembly.push("@startEnd", "\n")
-		// 	}
-		// 	assembly.push(...context.testAssembly)
-		// 	assembly.push("jump", "\n")
-		// } else {
-		// 	assembly.push(...context.startAssembly)
-		// }
-		assembly.push(...context.setupAssembly)
-		if (files[conf.entry].main) {
-			assembly.push(...context.startAssembly)
+
+		if (conf.asAssembly) {
+			if (logEverything) console.time("read assembly")
+			const text = fs.readFileSync(join(rootPath, conf.entry), "ascii")
+			assembly = text.split(/[\n\t" "]+/g)
+			if (logEverything) {
+				console.timeEnd("read assembly")
+				console.log("")
+			}
 		} else {
-			assembly.push(
-				"push", "*end_of_program", "\n",
-				"jump", "\n"
-			)
+
+			let context = {
+				rootPath: rootPath,
+				globalCount: 1,
+				uniqueIdentifierCounter: 0,
+				testCounter: 1,
+
+				types: [],
+				recursionHistory: [],
+
+				functionId: undefined,
+				expectedReturnType: undefined,
+				startAssembly: [],
+				mainAssembly: [],
+				constants: [],
+			}
+
+			let files = {}
+
+			Modlite_compiler.getAssembly(conf.entry, context, files, true)
+			if (logEverything) console.log("files:\n", JSON.stringify(files) + "\n")
+
+			assembly.push(...context.startAssembly)
+			assembly.push(...context.mainAssembly)
+			assembly.push(...context.constants)
+
 		}
 
-		assembly.push(...context.mainAssembly)
-		assembly.push("@end_of_program")
-		if (logEverything) console.log("assembly:\n " + assembly.join(" ") + "\n")
+		if (logEverything) {
+			console.log("assembly:\n " + assembly.join("\n ") + "\n")
+			console.time("compile")
+		}
 
 		const opCode = Modlite_compiler.assemblyToOperationCode(assembly)
-		if (logEverything) console.log("opCode:\n" + opCode + "\n")
+		if (logEverything) {
+			console.timeEnd("compile")
+			console.log("\nopCode:")
+			console.log(opCode)
+			console.log("")
+
+			console.time("save to file")
+		}
 
 		// save the opCode to a file in the rootPath
 		fs.writeFile(join(rootPath, conf.saveTo), opCode, function (err) {
@@ -1010,6 +964,11 @@ Modlite_compiler.compileCode = (rootPath) => {
 				console.log("test build saved to " + join(rootPath, conf.saveTo))
 			} else {
 				console.log("saved to " + join(rootPath, conf.saveTo))
+			}
+
+			if (logEverything) {
+				console.log("")
+				console.timeEnd("save to file")
 			}
 		});
 	} catch (error) {
@@ -1034,6 +993,8 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 	let recursionHistory = []
 
 	files[path] = {}
+
+	throw "getAssembly is not working right now"
 
 	for (let index = 0; index < build_in.length; index++) {
 		const thing = build_in[index];
@@ -1119,9 +1080,6 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 						initialized: false,
 					}
 					files[path][thing.name] = variables[level][thing.name]
-
-					// make sure that there is room on the stack for the global variable
-					context.setupAssembly.push("push", "null", "\n")
 				} else {
 					variables[level][thing.name] = {
 						type: thing.variableType,
@@ -1189,7 +1147,6 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 		}
 
 		if (flags.includes("newScope") && level != 0) {
-			pushToAssembly(["addRegisters", String(getRegisterRequirement())])
 		}
 		
 		//
@@ -1215,20 +1172,19 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				}
 				context.functionId = variable.ID
 				context.expectedReturnType = variable.return
-
-				pushToAssembly([`@${variable.ID}`])
 				
-				if (buildType == "debug") debugLog(`in function ${thing.name} ID: ${variable.ID} (${thing.lineNumber})`)
+				pushToAssembly([`@${variable.ID}`])
 
 				assemblyLoop(assembly, thing.codeBlock, "function", buildType, ["newScope"])
-				if (variables[0][thing.name].args.length > 0) pushToAssembly(["pop", String(variables[0][thing.name].args.length)])
-				pushToAssembly(["jump"])
+
+				if (variables[0][thing.name].args.length > 0) {
+
+				}
 
 				types.push(undefined)
 			}
 
 			else if (thing.type == "table") {
-				pushToAssembly(["createTable"])
 
 				types.push({type: "Table"})
 			}
@@ -1242,13 +1198,12 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 						context.functionId = method.ID
 						context.expectedReturnType = method.return
 
-						pushToAssembly([`@${method.ID}`])
-
 						if (buildType == "debug") debugLog(`in function ${inClass.name} ID: ${method.ID} (${inClass.lineNumber})`)
 
 						assemblyLoop(assembly, inClass.codeBlock, "class", buildType, [])
-						if (method.args.length > 0) pushToAssembly(["pop", String(method.args.length)])
-						pushToAssembly(["jump"])
+						if (method.args.length > 0) {
+
+						}
 					}
 				}
 
@@ -1268,13 +1223,14 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 					if (variable && variable.type == "class") {
 						if (!variable.data[thing.right[0]]) err(`class ${typelist[0].type} does not have a member named ${thing.right}`)
 
-						pushToAssembly(["push", String(variable.data[thing.right].index)])
 					} else {
 						assemblyLoop(assembly, thing.right, "memberAccess", buildType, ["expectValues"])
 					}
 				}
 
-				if (recursionHistory[recursionHistory.length-1] != "assignment_left") pushToAssembly(["getTable"])
+				if (recursionHistory[recursionHistory.length-1] != "assignment_left") {
+
+				}
 
 				types.push(typelist[0])
 			}
@@ -1282,23 +1238,17 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			else if (thing.type == "string") {
 				if (!flags.includes("expectValues")) err(`unexpected ${thing.type}`)
 
-				pushToAssembly(["push", String(thing.value)])
-
 				types.push({type: "String"})
 			}
 
 			else if (thing.type == "number") {
 				if (!flags.includes("expectValues")) err(`unexpected ${thing.type}`)
 
-				pushToAssembly(["push", String(thing.value)])
-
 				types.push({type: "Number"})
 			}
 			
 			else if (thing.type == "bool") {
 				if (!flags.includes("expectValues")) err(`unexpected ${thing.type}`)
-
-				pushToAssembly(["push", thing.value == true ? "1" : "0"])
 
 				types.push({type: "Bool"})
 			}
@@ -1321,16 +1271,13 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 					checkType(variable.type, typelist[0])
 
 					if (variable.global) {
-						pushToAssembly(["setGlobal", String(variable.index)])
 					} else {
-						pushToAssembly(["set", String(variable.index)])
 					}
 
 					variable.initialized = true
 				} else if (thing.left[0].type == "memberAccess") {
 					checkType(memberAccessTypelist[0], typelist[0], thing.left)
 
-					pushToAssembly(["setTable"])
 				}
 
 				types.push(undefined)
@@ -1343,15 +1290,12 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				if (!variable) err("variable " + thing.value + " does not exist")
 
 				if (variable.type == "Function") {
-					pushToAssembly(["push", "*" + variable.ID])
 
 					types.push({type: variable.type})
 				} else {
 					if (variable.global) {
-						pushToAssembly(["getGlobal", String(variable.index)])
 					} else {
 						if (!variable.initialized) err("variable " + thing.value + " not initialized")
-						pushToAssembly(["get", String(variable.index)])
 					}
 
 					types.push(variable.type)
@@ -1380,15 +1324,9 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 					if (variable.type == "ExposedFunction") {
 						typelist = assemblyLoop(assembly, thing.args, "call", buildType, ["expectValues"])
-						pushToAssembly(["push", variable.ID])
-						pushToAssembly(["externalJump"])
 					} else {
 						const return_location = "return_location" + context.uniqueIdentifierCounter++
-						pushToAssembly(["push", "*" + return_location])
 						typelist = assemblyLoop(assembly, thing.args, "call", buildType, ["expectValues"])
-						pushToAssembly(["push", "*" + variable.ID])
-						pushToAssembly(["jump"])
-						pushToAssembly(["@" + return_location])
 					}
 
 					if (typelist.length > variable.args.length) err(`too many arguments for ${name} requires ${variable.args.length}`)
@@ -1405,17 +1343,14 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 					}
 
 					if (variable.type == "Function" && variable.return != "Void" && flags.includes("expectValues")) {
-						pushToAssembly(["getGlobal", "0"])
 					}
 
 					// if the exposedFunction returns something pop the return value off because it is not being used
 					if (variable.type == "ExposedFunction" && variable.return != "Void" && !flags.includes("expectValues")) {
-						pushToAssembly(["pop", "1"])
 					}
 
 					types.push({type: variable.return})
 				} else if (variable.type == "class") {
-					pushToAssembly(["createTable"])
 
 					types.push({type: name})
 				} else {
@@ -1427,13 +1362,9 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				assemblyLoop(assembly, thing.left, "operation", buildType, ["expectValues"])
 				assemblyLoop(assembly, thing.right, "operation", buildType, ["expectValues"])
 				if (thing.value == "+") {
-					pushToAssembly(["add"])
 				} else if (thing.value == "-") {
-					pushToAssembly(["subtract"])
 				} else if (thing.value == "*") {
-					pushToAssembly(["multiply"])
 				} else if (thing.value == "/") {
-					pushToAssembly(["divide"])
 				}
 
 				types.push({type: "Number"})
@@ -1443,7 +1374,6 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			else if (thing.type == "equivalent") {
 				assemblyLoop(assembly, thing.left, "equivalent", buildType, ["expectValues"])
 				assemblyLoop(assembly, thing.right, "equivalent", buildType, ["expectValues"])
-				pushToAssembly(["equivalent"])
 
 				types.push({type: "Bool"})
 			}
@@ -1451,8 +1381,6 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			else if (thing.type == "notEquivalent") {
 				assemblyLoop(assembly, thing.left, "notEquivalent", buildType, ["expectValues"])
 				assemblyLoop(assembly, thing.right, "notEquivalent", buildType, ["expectValues"])
-				pushToAssembly(["equivalent"])
-				pushToAssembly(["not"])
 				
 				types.push({type: "Bool"})
 			}
@@ -1460,7 +1388,6 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			else if (thing.type == "greaterThan") {
 				assemblyLoop(assembly, thing.left, "greaterThan", buildType, ["expectValues"])
 				assemblyLoop(assembly, thing.right, "greaterThan", buildType, ["expectValues"])
-				pushToAssembly(["greaterThan"])
 
 				types.push({type: "Bool"})
 			}
@@ -1469,7 +1396,6 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			else if (thing.type == "lessThan") {
 				assemblyLoop(assembly, thing.right, "lessThan", buildType, ["expectValues"])
 				assemblyLoop(assembly, thing.left, "lessThan", buildType, ["expectValues"])
-				pushToAssembly(["greaterThan"])
 
 				types.push({type: "Bool"})
 			}
@@ -1477,7 +1403,6 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			else if (thing.type == "join") {
 				assemblyLoop(assembly, thing.left, "join", buildType, ["expectValues"])
 				assemblyLoop(assembly, thing.right, "join", buildType, ["expectValues"])
-				pushToAssembly(["join"])
 
 				types.push({type: "String"})
 			}
@@ -1492,22 +1417,10 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				if (typelist[0].type != "Bool") err(`if statement got type ${typelist[0].type} but expected type Bool`)
 
 				if (thing.falseCodeBlock) {
-					pushToAssembly(["push", "*" + if_true])
-					pushToAssembly(["conditionalJump"])
-
 					assemblyLoop(assembly, thing.falseCodeBlock, "if", buildType, [])
-					pushToAssembly(["push", "*" + if_end])
-					pushToAssembly(["jump"])
-
-					pushToAssembly(["@" + if_true])
 					assemblyLoop(assembly, thing.trueCodeBlock, "if", buildType, [])
-
-					pushToAssembly(["@" + if_end])
 				} else {
-					pushToAssembly(["push", "*" + if_end])
-					pushToAssembly(["notConditionalJump"])
 					assemblyLoop(assembly, thing.trueCodeBlock, "if", buildType, [])
-					pushToAssembly(["@" + if_end])
 				}
 
 				types.push(undefined)
@@ -1525,19 +1438,8 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 					const switch_over = "switch_over" + index + " " + context.uniqueIdentifierCounter++
 
 					assemblyLoop(assembly, Case.condition, "switch", buildType, ["expectValues"])
-
-					pushToAssembly(["push", "*" + switch_over])
-					pushToAssembly(["notConditionalJump"])
-
 					assemblyLoop(assembly, Case.codeBlock, "switch", buildType, [])
-
-					pushToAssembly(["push", "*" + switch_end])
-					pushToAssembly(["jump"])
-
-					pushToAssembly(["@" + switch_over])
 				}
-
-				pushToAssembly(["@" + switch_end])
 
 				types.push(undefined)
 			}
@@ -1545,19 +1447,9 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			else if (thing.type == "while") {
 				const while_top = "while_top" + context.uniqueIdentifierCounter++
 				const while_bottom = "while_bottom_id" + context.uniqueIdentifierCounter++
-
-				pushToAssembly(["push", "*" + while_bottom])
-				pushToAssembly(["jump"])
-
-
-				pushToAssembly(["@" + while_top])
 				assemblyLoop(assembly, thing.codeBlock, "while", buildType, [])
 
-
-				pushToAssembly(["@" + while_bottom])
 				assemblyLoop(assembly, thing.condition, "while", buildType, ["expectValues"])
-				pushToAssembly(["push", "*" + while_top])
-				pushToAssembly(["conditionalJump"])
 
 				types.push(undefined)
 			}
@@ -1573,11 +1465,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				if (typelist[0] != context.expectedReturnType) err(`expected return type ${context.expectedReturnType} got ${typelist[0]}`)
 
 				if (thing.expression.length != 0 && context.expectedReturnType != "void") {
-					pushToAssembly(["setGlobal", "0"])
 				}
-				// for now just jump to the end of the function
-				pushToAssembly(["push", "*end " + context.functionId])
-				pushToAssembly(["jump"])
 
 				types.push(undefined)
 			}
@@ -1601,8 +1489,6 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 		if (flags.includes("newScope")) {
 			if (level != 0) {
-				pushToAssembly(["@" + "end " + context.functionId])
-				pushToAssembly(["removeRegisters", String(getRegisterRequirement())])
 			}
 
 			delete variables[level]
@@ -1615,12 +1501,6 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 		function pushToAssembly(data) {
 			assembly.push(...data, "\n")
-		}
-
-		function debugLog(msg) {
-			pushToAssembly(["push", "[debug] "+msg])
-			pushToAssembly(["push", "MLSL:print"])
-			pushToAssembly(["externalJump"])
 		}
 	}
 

@@ -1,0 +1,18 @@
+@start
+	!loadR0 &main
+	!jump
+@true
+	0x00 0x00 0x00 0x01
+@false
+	0x00 0x00 0x00 0x00
+@main
+	!loadR0 &false
+	!transferToR1
+
+	!loadR0 &over
+	!notConditionalJump
+
+	!externalJump
+@over
+	!loadR0 0xFF 0xFF 0xFF 0xFF
+	!jump
