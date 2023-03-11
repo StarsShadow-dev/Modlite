@@ -839,7 +839,7 @@ Modlite_compiler.assemblyToOperationCode = (assembly) => {
 			data.setUint8(dataLength++, parseInt(string, 16))
 		}
 		
-		else if (thing == "\n") {}
+		else if (thing == "\n" || thing == "") {}
 		
 		else {
 			throw `unknown assembly type \`${thing}\``
