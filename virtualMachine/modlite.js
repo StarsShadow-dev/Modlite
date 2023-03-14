@@ -5,15 +5,6 @@
 	Can run a web browser or node.
 */
 
-/*
-	registers
-
-	0 = location
-	1 to 3 = value
-
-	10 = stack pointer
-*/
-
 const binaryCodes = [
 	"jump",
 	"conditionalJump",
@@ -101,6 +92,7 @@ class ModliteRunTime {
 
 				console.log("jump", location)
 
+				// a jump to 0xFFFFFFFF ends the program
 				if (location == 4294967295) return
 
 				this.instructionPointer = location
@@ -110,9 +102,8 @@ class ModliteRunTime {
 				const location = this.registers.getUint32(0)
 				const condition = this.registers.getUint32(2*4) == 1
 
-				console.log("conditionalJump", location, condition)
-
 				if (condition) {
+					// a jump to 0xFFFFFFFF ends the program
 					if (location == 4294967295) return
 
 					this.instructionPointer = location
@@ -123,11 +114,8 @@ class ModliteRunTime {
 				const location = this.registers.getUint32(0)
 				const condition = this.registers.getUint32(2*4) == 1
 
-				console.log("notNonditionalJump", location, condition)
-
-				console.log("register is", this.registers.getUint32(4))
-
 				if (!condition) {
+					// a jump to 0xFFFFFFFF ends the program
 					if (location == 4294967295) return
 
 					this.instructionPointer = location
@@ -144,8 +132,6 @@ class ModliteRunTime {
 				this.instructionPointer += 3
 
 				const register = this.data.getUint8(++this.instructionPointer)*4
-
-				console.log("register", register)
 
 				this.registers.setUint32(register, value)
 			}
@@ -200,7 +186,7 @@ class ModliteRunTime {
 				// set value
 				if ((byte & 0b00000001) != 0) {
 					// to memory specified by the register
-					const location = this.registers.getUint32(register1)
+					const location = this.registers.getUint32(register2)
 
 					this.data.setUint32(location, value)
 				} else {
@@ -210,6 +196,13 @@ class ModliteRunTime {
 			}
 
 			else if (binaryCodes[instruction] == "add") {
+				const register1 = this.data.getUint8(++this.instructionPointer)*4
+				const register1value = this.registers.getUint32(register1)
+
+				const register2 = this.data.getUint8(++this.instructionPointer)*4
+				const register2value = this.registers.getUint32(register2)
+
+				this.registers.setUint32(register1, register1value + register2value)
 			}
 			else if (binaryCodes[instruction] == "subtract") {
 				const register1 = this.data.getUint8(++this.instructionPointer)*4
@@ -218,15 +211,25 @@ class ModliteRunTime {
 				const register2 = this.data.getUint8(++this.instructionPointer)*4
 				const register2value = this.registers.getUint32(register2)
 
-				console.log("register1 old value", register1value)
-				
 				this.registers.setUint32(register1, register1value - register2value)
-
-				console.log("register1 new value", this.registers.getUint32(register1))
 			}
 			else if (binaryCodes[instruction] == "multiply") {
+				const register1 = this.data.getUint8(++this.instructionPointer)*4
+				const register1value = this.registers.getUint32(register1)
+
+				const register2 = this.data.getUint8(++this.instructionPointer)*4
+				const register2value = this.registers.getUint32(register2)
+
+				this.registers.setUint32(register1, register1value * register2value)
 			}
 			else if (binaryCodes[instruction] == "divide") {
+				const register1 = this.data.getUint8(++this.instructionPointer)*4
+				const register1value = this.registers.getUint32(register1)
+
+				const register2 = this.data.getUint8(++this.instructionPointer)*4
+				const register2value = this.registers.getUint32(register2)
+
+				this.registers.setUint32(register1, register1value / register2value)
 			}
 
 			else if (binaryCodes[instruction] == "equivalent") {

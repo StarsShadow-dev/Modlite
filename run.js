@@ -24,8 +24,8 @@ for (let i = 0; i < binary.length; i++) {
 
 console.time("runTime")
 
-// runTime.logData()
-
 runTime.run()
+
+runTime.logData()
 
 console.timeEnd("runTime")
