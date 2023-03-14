@@ -22,6 +22,10 @@ for (let i = 0; i < binary.length; i++) {
 	runTime.data.setUint8(i, character.charCodeAt(0))
 }
 
+console.time("runTime")
+
 // runTime.logData()
 
 runTime.run()
+
+console.timeEnd("runTime")

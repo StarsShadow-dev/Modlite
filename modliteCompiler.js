@@ -25,31 +25,24 @@ const Modlite_compiler = {
 		"var",
 	],
 	
-	binaryCodes: {
-		"jump": 0,
-		"conditionalJump": 1,
-		"notConditionalJump": 2,
-		"externalJump": 3,
+	binaryCodes: [
+		"jump",
+		"conditionalJump",
+		"notConditionalJump",
+		"externalJump",
 	
-		"transfer": 4,
+		"load",
+		"staticTransfer",
+		"dynamicTransfer",
 	
-		"loadR0": 5,
-		"storeR0": 6,
+		"add",
+		"subtract",
+		"multiply",
+		"divide",
 	
-		"transferToR1": 7,
-		"transferFromR1": 8,
-	
-		"transferToR2": 9,
-		"transferFromR2": 10,
-	
-		"add": 11,
-		"subtract": 12,
-		"multiply": 13,
-		"divide": 14,
-	
-		"equivalent": 15,
-		"greaterThan": 16,
-	}
+		"equivalent",
+		"greaterThan",
+	]
 }
 
 function getCharacter(string) {
@@ -800,7 +793,10 @@ Modlite_compiler.assemblyToOperationCode = (assembly) => {
 		const thing = assembly[index];
 		
 		if (thing.startsWith("@")) {
-			if (!locations[thing.slice(1, thing.length)]) locations[thing.slice(1, thing.length)] = {
+			if (locations[thing.slice(1, thing.length)] && locations[thing.slice(1, thing.length)].position) {
+				throw `location ${thing.slice(1, thing.length)} already exists`
+			}
+			locations[thing.slice(1, thing.length)] = {
 				position: 0,
 				references: []
 			}
@@ -808,9 +804,15 @@ Modlite_compiler.assemblyToOperationCode = (assembly) => {
 		}
 		
 		else if (thing.startsWith("!")) {
-			const instructionName = thing.slice(1, thing.length)
-			if (Object.keys(Modlite_compiler.binaryCodes).includes(instructionName)) {
-				data.setUint8(dataLength++, Modlite_compiler.binaryCodes[instructionName])
+			const instruction = thing.slice(1, thing.length).split("|")
+			const instructionName = instruction[0]
+			const flag1Set = instruction[1] && instruction[1][0] == "1"
+			const flag2Set = instruction[1] && instruction[1][1] == "1"
+			
+			if (Modlite_compiler.binaryCodes.includes(instructionName)) {
+				const byte = (Modlite_compiler.binaryCodes.indexOf(instructionName) << 2) + (flag1Set ? 0b10 : 0) + (flag2Set ? 0b01 : 0)
+
+				data.setUint8(dataLength++, byte)
 			} else {
 				throw "unknown assembly instruction " + instructionName
 			}
@@ -819,14 +821,12 @@ Modlite_compiler.assemblyToOperationCode = (assembly) => {
 
 		else if (thing.startsWith("&")) {
 			if (!locations[thing.slice(1, thing.length)]) locations[thing.slice(1, thing.length)] = {
-				position: 0,
+				position: undefined,
 				references: []
 			}
+
 			locations[thing.slice(1, thing.length)].references.push(dataLength + 1)
-			data.setUint8(dataLength++, 0)
-			data.setUint8(dataLength++, 0)
-			data.setUint8(dataLength++, 0)
-			data.setUint8(dataLength++, 0)
+			dataLength += 4
 		}
 
 		else if (thing.startsWith("$")) {
@@ -836,7 +836,20 @@ Modlite_compiler.assemblyToOperationCode = (assembly) => {
 		else if (thing.startsWith("0x")) {
 			const string = thing.slice(2, thing.length)
 
-			data.setUint8(dataLength++, parseInt(string, 16))
+			if (string.length <= 2) {
+				data.setUint8(dataLength++, parseInt(string, 16))
+			}
+			else if (string.length <= 4) {
+				data.setUint16(dataLength, parseInt(string, 16))
+				dataLength += 2
+			}
+			else if (string.length <= 8) {
+				data.setUint32(dataLength, parseInt(string, 16))
+				dataLength += 4
+			}
+			else {
+				throw `Hex value too large: ${thing}`
+			}
 		}
 		
 		else if (thing == "\n" || thing == "") {}

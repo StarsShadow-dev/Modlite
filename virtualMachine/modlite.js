@@ -1,8 +1,17 @@
 /*
-	RunTime version 20
+	ModliteRunTime version 21
 
 	For JavaScript.
 	Can run a web browser or node.
+*/
+
+/*
+	registers
+
+	0 = location
+	1 to 3 = value
+
+	10 = stack pointer
 */
 
 const binaryCodes = [
@@ -11,19 +20,9 @@ const binaryCodes = [
 	"notConditionalJump",
 	"externalJump",
 
-	"transfer",
-
-	// The location register
-	"loadR0",
-	"storeR0",
-
-	// value 1 register
-	"transferToR1",
-	"transferFromR1",
-
-	// value 2 register
-	"transferToR2",
-	"transferFromR2",
+	"load",
+	"staticTransfer",
+	"dynamicTransfer",
 
 	"add",
 	"subtract",
@@ -50,14 +49,17 @@ class ModliteRunTime {
 		this.size = size
 		this.data = new DataView(new ArrayBuffer(size))
 
-		this.registers = new DataView(new ArrayBuffer(12))
+		this.registers = new DataView(new ArrayBuffer(40))
+		this.registers.setUint32(9*4, size - 4)
 	}
 
 	deepReset() {
 		this.instructionPointer = 0
+
 		this.data = new DataView(new ArrayBuffer(this.size))
 
-		this.registers = new DataView(new ArrayBuffer(12))
+		this.registers = new DataView(new ArrayBuffer(40))
+		this.registers.setUint32(9*4, size - 4)
 	}
 
 	logData() {
@@ -69,15 +71,14 @@ class ModliteRunTime {
 		while (i < this.data.byteLength) {
 			const byte = this.data.getUint8(i)
 
+			const instruction = byte >> 2
+
 			if (argCounter > 0) {
 				console.log(`|    [${byteToHex(byte)}]`)
 				argCounter--
 			} else {
 				if (binaryCodes[byte]) {
-					console.log(`[${byteToHex(byte)}] - ${binaryCodes[byte]}`)
-					if (binaryCodes[byte] == "loadR0") {
-						argCounter = 4
-					}
+					console.log(`[${byteToHex(byte)}] - ${binaryCodes[instruction]} {${(byte & 0b00000010) != 0} | ${(byte & 0b00000001) != 0}}`)
 				} else {
 					console.log(`[${byteToHex(byte)}] - ???`)
 				}
@@ -91,9 +92,11 @@ class ModliteRunTime {
 		while (this.instructionPointer < this.data.byteLength) {
 			const byte = this.data.getUint8(this.instructionPointer)
 
-			console.log(`[${byteToHex(byte)}] - ${binaryCodes[byte]}`)
+			const instruction = byte >> 2
+			
+			console.log(`[${byteToHex(byte)}] - ${binaryCodes[instruction]} {${(byte & 0b00000010) != 0} | ${(byte & 0b00000001) != 0}}`)
 
-			if (binaryCodes[byte] == "jump") {
+			if (binaryCodes[instruction] == "jump") {
 				const location = this.registers.getUint32(0)
 
 				console.log("jump", location)
@@ -103,9 +106,9 @@ class ModliteRunTime {
 				this.instructionPointer = location
 				continue
 			}
-			else if (binaryCodes[byte] == "conditionalJump") {
+			else if (binaryCodes[instruction] == "conditionalJump") {
 				const location = this.registers.getUint32(0)
-				const condition = this.registers.getUint32(4) == 1
+				const condition = this.registers.getUint32(2*4) == 1
 
 				console.log("conditionalJump", location, condition)
 
@@ -116,9 +119,9 @@ class ModliteRunTime {
 					continue
 				}
 			}
-			else if (binaryCodes[byte] == "notConditionalJump") {
+			else if (binaryCodes[instruction] == "notConditionalJump") {
 				const location = this.registers.getUint32(0)
-				const condition = this.registers.getUint32(4) == 1
+				const condition = this.registers.getUint32(2*4) == 1
 
 				console.log("notNonditionalJump", location, condition)
 
@@ -131,56 +134,104 @@ class ModliteRunTime {
 					continue
 				}
 			}
-			else if (binaryCodes[byte] == "externalJump") {
+			else if (binaryCodes[instruction] == "externalJump") {
 				console.log("yay an externalJump")
+				this.logData()
 			}
 
-			else if (binaryCodes[byte] == "transfer") {
-				
-			}
-			else if (binaryCodes[byte] == "loadR0") {
-				this.registers.setUint32(0, this.data.getUint32(++this.instructionPointer))
+			else if (binaryCodes[instruction] == "load") {
+				const value = this.data.getUint32(++this.instructionPointer)
 				this.instructionPointer += 3
 
-				console.log("loadR0", this.registers.getUint32(0))
-			}
-			// else if (binaryCodes[byte] == "storeR0") {
-			// }
+				const register = this.data.getUint8(++this.instructionPointer)*4
 
-			else if (binaryCodes[byte] == "transferToR1") {
-				const location = this.registers.getUint32(0)
-				console.log("before transfer to R1, location: ", location)
+				console.log("register", register)
 
-				this.registers.setUint32(4, this.data.getUint32(location))
+				this.registers.setUint32(register, value)
+			}
+			else if (binaryCodes[instruction] == "staticTransfer") {
+				let value
+				
+				if ((byte & 0b00000010) != 0) {
+					// from memory
+					const location = this.data.getUint32(++this.instructionPointer)
+					this.instructionPointer += 3
 
-				console.log("transferToR1", this.registers.getUint32(4))
-			}
-			else if (binaryCodes[byte] == "transferFromR1") {
+					value = this.data.getUint32(location)
+				} else {
+					// from register
+					const register = this.data.getUint8(++this.instructionPointer)*4
 
-			}
-			
-			else if (binaryCodes[byte] == "transferToR2") {
-				const location = this.registers.getUint32(0)
+					console.log(this.registers.byteLength, register)
 
-				this.registers.setUint32(8, this.data.getUint32(location))
+					value = this.registers.getUint32(register)
+				}
 
-				console.log("transferToR2", this.R1.getUint32(4))
+				if ((byte & 0b00000001) != 0) {
+					// to memory
+					const location = this.registers.getUint32(4)
+
+					this.registers.setUint32(location, value)
+				} else {
+					// to register
+					let register = this.data.getUint8(++this.instructionPointer)*4
+
+					this.registers.setUint32(register, value)
+				}
 			}
-			else if (binaryCodes[byte] == "transferFromR2") {
+			else if (binaryCodes[instruction] == "dynamicTransfer") {
+				let value
+
+				const register1 = this.data.getUint8(++this.instructionPointer)*4
+
+				// get value
+				if ((byte & 0b00000010) != 0) {
+					// from memory specified by the register
+					const location = this.registers.getUint32(register1)
+
+					value = this.data.getUint32(location)
+				} else {
+					// from register
+					value = this.registers.getUint32(register1)
+				}
+
+				const register2 = this.data.getUint8(++this.instructionPointer)*4
+
+				// set value
+				if ((byte & 0b00000001) != 0) {
+					// to memory specified by the register
+					const location = this.registers.getUint32(register1)
+
+					this.data.setUint32(location, value)
+				} else {
+					// to register
+					this.registers.setUint32(register2, value)
+				}
 			}
 
-			else if (binaryCodes[byte] == "add") {
+			else if (binaryCodes[instruction] == "add") {
 			}
-			else if (binaryCodes[byte] == "subtract") {
+			else if (binaryCodes[instruction] == "subtract") {
+				const register1 = this.data.getUint8(++this.instructionPointer)*4
+				const register1value = this.registers.getUint32(register1)
+
+				const register2 = this.data.getUint8(++this.instructionPointer)*4
+				const register2value = this.registers.getUint32(register2)
+
+				console.log("register1 old value", register1value)
+				
+				this.registers.setUint32(register1, register1value - register2value)
+
+				console.log("register1 new value", this.registers.getUint32(register1))
 			}
-			else if (binaryCodes[byte] == "multiply") {
+			else if (binaryCodes[instruction] == "multiply") {
 			}
-			else if (binaryCodes[byte] == "divide") {
+			else if (binaryCodes[instruction] == "divide") {
 			}
 
-			else if (binaryCodes[byte] == "equivalent") {
+			else if (binaryCodes[instruction] == "equivalent") {
 			}
-			else if (binaryCodes[byte] == "greaterThan") {
+			else if (binaryCodes[instruction] == "greaterThan") {
 
 			}
 
