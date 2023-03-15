@@ -793,13 +793,17 @@ Modlite_compiler.assemblyToOperationCode = (assembly) => {
 		const thing = assembly[index];
 		
 		if (thing.startsWith("@")) {
-			if (locations[thing.slice(1, thing.length)] && locations[thing.slice(1, thing.length)].position) {
-				throw `location ${thing.slice(1, thing.length)} already exists`
+			if (locations[thing.slice(1, thing.length)]) {
+				if (locations[thing.slice(1, thing.length)].position) {
+					throw `location ${thing.slice(1, thing.length)} already exists`
+				}
+			} else {
+				locations[thing.slice(1, thing.length)] = {
+					position: 0,
+					references: []
+				}
 			}
-			locations[thing.slice(1, thing.length)] = {
-				position: 0,
-				references: []
-			}
+
 			locations[thing.slice(1, thing.length)].position = dataLength
 		}
 		
@@ -830,7 +834,11 @@ Modlite_compiler.assemblyToOperationCode = (assembly) => {
 		}
 
 		else if (thing.startsWith("$")) {
-			data.setUint8(dataLength++, thing.slice(1, thing.length).charCodeAt(0))
+			const value = thing.slice(1, thing.length)
+
+			for (let i = 0; i < value.length; i++) {
+				data.setUint8(dataLength++, value.charCodeAt(i))
+			}
 		}
 		
 		else if (thing.startsWith("0x")) {
@@ -920,8 +928,10 @@ Modlite_compiler.compileCode = (rootPath) => {
 
 		if (conf.asAssembly) {
 			if (logEverything) console.time("read assembly")
+
 			const text = fs.readFileSync(join(rootPath, conf.entry), "ascii")
 			assembly = text.split(/[\n\t" "]+/g)
+
 			if (logEverything) {
 				console.timeEnd("read assembly")
 				console.log("")
@@ -939,9 +949,15 @@ Modlite_compiler.compileCode = (rootPath) => {
 
 				functionId: undefined,
 				expectedReturnType: undefined,
-				startAssembly: [],
+				startAssembly: [
+					"!load", "0x00000004", "0x01", "\n",
+
+					"!load", "0x11111111", "0x00", "\n",
+					"!dynamicTransfer|01", "0x00", "0x09", "\n",
+					"!subtract", "0x09", "0x01", "\n",
+				],
 				mainAssembly: [],
-				constants: [],
+				constants: {},
 			}
 
 			let files = {}
@@ -951,12 +967,17 @@ Modlite_compiler.compileCode = (rootPath) => {
 
 			assembly.push(...context.startAssembly)
 			assembly.push(...context.mainAssembly)
-			assembly.push(...context.constants)
+
+			for (const key in context.constants) {
+				assembly.push("@"+key, "\n", "$"+context.constants[key])
+			}
 
 		}
 
+		console.log("mainAssembly", assembly)
+
 		if (logEverything) {
-			console.log("assembly:\n " + assembly.join("\n ") + "\n")
+			console.log("assembly:\n " + assembly.join(" ") + "\n")
 			console.time("compile")
 		}
 
@@ -991,8 +1012,12 @@ Modlite_compiler.compileCode = (rootPath) => {
 }
 
 Modlite_compiler.getAssembly = (path, context, files, main) => {
+	if (logEverything) console.time("read file")
 	const text = fs.readFileSync(join(context.rootPath, path), "utf8")
-	if (logEverything) console.log(`------- ${join(context.rootPath, path)} -------\n${text}\n`)
+	if (logEverything) {
+		console.timeEnd("read file")
+		console.log(`\n------- ${join(context.rootPath, path)} -------\n${text}\n`)
+	}
 
 	const tokens = Modlite_compiler.lex(text)
 	if (logEverything) console.log("tokens:\n" + JSON.stringify(tokens, null) + "\n")
@@ -1006,8 +1031,6 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 	let recursionHistory = []
 
 	files[path] = {}
-
-	throw "getAssembly is not working right now"
 
 	for (let index = 0; index < build_in.length; index++) {
 		const thing = build_in[index];
@@ -1190,9 +1213,19 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 				assemblyLoop(assembly, thing.codeBlock, "function", buildType, ["newScope"])
 
-				if (variables[0][thing.name].args.length > 0) {
+				pushToAssembly(["!load", "0x00000004", "0x01"])
 
+				if (variables[0][thing.name].args.length > 0) {
+					for (let i = 0; i < variables[0][thing.name].args.length; i++) {
+						// pop from the stack
+						pushToAssembly(["!add", "0x09", "0x01"])
+						pushToAssembly(["!dynamicTransfer|10", "0x09", "0x00"])
+					}
 				}
+				
+				pushToAssembly(["!add", "0x09", "0x01"])
+				pushToAssembly(["!dynamicTransfer|10", "0x09", "0x00"])
+				pushToAssembly(["!jump"])
 
 				types.push(undefined)
 			}
@@ -1250,6 +1283,17 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			
 			else if (thing.type == "string") {
 				if (!flags.includes("expectValues")) err(`unexpected ${thing.type}`)
+
+				const constantID = "string"+Object.keys(context.constants).length
+
+				context.constants[constantID] = thing.value
+
+				// pushToAssembly(["!staticTransfer|10", "&"+constantID, "0x00"])
+				pushToAssembly(["!load", "&"+constantID, "0x00"])
+				pushToAssembly(["!dynamicTransfer|01", "0x00", "0x09"])
+
+				pushToAssembly(["!load", "0x00000004", "0x01"])
+				pushToAssembly(["!subtract", "0x09", "0x01"])
 
 				types.push({type: "String"})
 			}
@@ -1333,13 +1377,14 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 					if (buildType == "debug") debugLog(`call ${variable.type} ID: ${variable.ID} (${thing.lineNumber})`)
 
-					let typelist
+					const typelist = assemblyLoop(assembly, thing.args, "call", buildType, ["expectValues"])
 
 					if (variable.type == "ExposedFunction") {
-						typelist = assemblyLoop(assembly, thing.args, "call", buildType, ["expectValues"])
+						pushToAssembly(["!load", variable.ID, "0x00"])
+						pushToAssembly(["!externalJump"])
 					} else {
+						err("not supported")
 						const return_location = "return_location" + context.uniqueIdentifierCounter++
-						typelist = assemblyLoop(assembly, thing.args, "call", buildType, ["expectValues"])
 					}
 
 					if (typelist.length > variable.args.length) err(`too many arguments for ${name} requires ${variable.args.length}`)

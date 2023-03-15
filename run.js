@@ -26,6 +26,6 @@ console.time("runTime")
 
 runTime.run()
 
-runTime.logData()
-
 console.timeEnd("runTime")
+
+// runTime.logData()

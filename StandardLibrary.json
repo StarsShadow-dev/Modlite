@@ -1,7 +1,7 @@
 {
 	"print": {
 		"type": "ExposedFunction",
-		"ID": "MLSL:print",
+		"ID": "0x00000000",
 		"args": [
 			{
 				"name": "message",
@@ -9,90 +9,5 @@
 			}
 		],
 		"return": "Void"
-	},
-	"error": {
-		"type": "ExposedFunction",
-		"ID": "MLSL:error",
-		"args": [
-			{
-				"name": "message",
-				"type": "Any"
-			}
-		],
-		"return": "Never"
-	},
-	"startsWith": {
-		"type": "ExposedFunction",
-		"ID": "MLSL:startsWith",
-		"args": [
-			{
-				"name": "string",
-				"type": "String"
-			},
-			{
-				"name": "startString",
-				"type": "String"
-			}
-		],
-		"return": "Bool"
-	},
-	"toNumber": {
-		"type": "ExposedFunction",
-		"ID": "MLSL:toNumber",
-		"args": [
-			{
-				"name": "string",
-				"type": "String"
-			}
-		],
-		"return": "Number"
-	},
-	"asString": {
-		"type": "ExposedFunction",
-		"ID": "MLSL:asString",
-		"args": [
-			{
-				"name": "number",
-				"type": "Number"
-			}
-		],
-		"return": "String"
-	},
-	"deleteTable": {
-		"type": "ExposedFunction",
-		"ID": "MLSL:deleteTable",
-		"args": [
-			{
-				"name": "ID",
-				"type": "Table"
-			}
-		],
-		"return": "Void"
-	},
-	"existsInTable": {
-		"type": "ExposedFunction",
-		"ID": "MLSL:existsInTable",
-		"args": [
-			{
-				"name": "tableID",
-				"type": "Table"
-			},
-			{
-				"name": "ID",
-				"type": "String"
-			}
-		],
-		"return": "Bool"
-	},
-	"tableSize": {
-		"type": "ExposedFunction",
-		"ID": "MLSL:tableSize",
-		"args": [
-			{
-				"name": "table",
-				"type": "Table"
-			}
-		],
-		"return": "Number"
 	}
 }

@@ -25,7 +25,17 @@ const binaryCodes = [
 ]
 
 class ModliteRunTime {
-	exposedFunctions = {}
+	exposedFunctions = [
+		() => {
+			const location = this.pop()
+			const value = this.readString(location)
+
+			// console.log("location", location)
+			// console.log("value", value)
+
+			console.log("[print]", value)
+		},
+	]
 
 	instructionPointer
 
@@ -51,6 +61,24 @@ class ModliteRunTime {
 
 		this.registers = new DataView(new ArrayBuffer(40))
 		this.registers.setUint32(9*4, size - 4)
+	}
+
+	pop() {
+		const stackPointer = this.registers.getUint32(9*4)+4
+		this.registers.setUint32(9*4, stackPointer)
+		return this.data.getUint32(stackPointer)
+	}
+
+	readString(location) {
+		let i = location
+		let string = ""
+		while(true) {
+			const byte = this.data.getUint8(i++)
+			if (byte == 0) {
+				return string
+			}
+			string += String.fromCharCode(byte)
+		}
 	}
 
 	logData() {
@@ -85,12 +113,12 @@ class ModliteRunTime {
 
 			const instruction = byte >> 2
 			
-			console.log(`[${byteToHex(byte)}] - ${binaryCodes[instruction]} {${(byte & 0b00000010) != 0} | ${(byte & 0b00000001) != 0}}`)
+			// console.log(`[${byteToHex(byte)}] - ${binaryCodes[instruction]} {${(byte & 0b00000010) != 0} | ${(byte & 0b00000001) != 0}}`)
 
 			if (binaryCodes[instruction] == "jump") {
 				const location = this.registers.getUint32(0)
 
-				console.log("jump", location)
+				// console.log("jump", location)
 
 				// a jump to 0xFFFFFFFF ends the program
 				if (location == 4294967295) return
@@ -123,8 +151,10 @@ class ModliteRunTime {
 				}
 			}
 			else if (binaryCodes[instruction] == "externalJump") {
-				console.log("yay an externalJump")
-				this.logData()
+				const ID = this.registers.getUint32(0)
+				// console.log("externalJump ID", ID)
+
+				this.exposedFunctions[ID]()
 			}
 
 			else if (binaryCodes[instruction] == "load") {
@@ -233,9 +263,22 @@ class ModliteRunTime {
 			}
 
 			else if (binaryCodes[instruction] == "equivalent") {
+				const register1 = this.data.getUint8(++this.instructionPointer)*4
+				const register1value = this.registers.getUint32(register1)
+
+				const register2 = this.data.getUint8(++this.instructionPointer)*4
+				const register2value = this.registers.getUint32(register2)
+
+				this.registers.setUint32(register1, register1value == register2value)
 			}
 			else if (binaryCodes[instruction] == "greaterThan") {
+				const register1 = this.data.getUint8(++this.instructionPointer)*4
+				const register1value = this.registers.getUint32(register1)
 
+				const register2 = this.data.getUint8(++this.instructionPointer)*4
+				const register2value = this.registers.getUint32(register2)
+
+				this.registers.setUint32(register1, register1value > register2value)
 			}
 
 			else {
