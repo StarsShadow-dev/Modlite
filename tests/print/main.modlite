@@ -1,5 +1,11 @@
 import { print } from "StandardLibrary"
 
-function main() void {
-	print("Hello, World")
+function main() Void {
+	print("in main1")
+	test()
+	print("in main2")
+}
+
+function test() Void {
+	print("in test")
 }

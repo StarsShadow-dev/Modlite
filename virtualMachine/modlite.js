@@ -15,6 +15,9 @@ const binaryCodes = [
 	"staticTransfer",
 	"dynamicTransfer",
 
+	// "push",
+	// "pop",
+
 	"add",
 	"subtract",
 	"multiply",
@@ -66,6 +69,7 @@ class ModliteRunTime {
 	pop() {
 		const stackPointer = this.registers.getUint32(9*4)+4
 		this.registers.setUint32(9*4, stackPointer)
+		
 		return this.data.getUint32(stackPointer)
 	}
 
@@ -113,12 +117,12 @@ class ModliteRunTime {
 
 			const instruction = byte >> 2
 			
-			// console.log(`[${byteToHex(byte)}] - ${binaryCodes[instruction]} {${(byte & 0b00000010) != 0} | ${(byte & 0b00000001) != 0}}`)
+			console.log(`${this.instructionPointer} - [${byteToHex(byte)}] - ${binaryCodes[instruction]} {${(byte & 0b00000010) != 0} | ${(byte & 0b00000001) != 0}}`)
 
 			if (binaryCodes[instruction] == "jump") {
 				const location = this.registers.getUint32(0)
 
-				// console.log("jump", location)
+				console.log("jump", location)
 
 				// a jump to 0xFFFFFFFF ends the program
 				if (location == 4294967295) return
@@ -224,6 +228,13 @@ class ModliteRunTime {
 					this.registers.setUint32(register2, value)
 				}
 			}
+
+			// else if (binaryCodes[instruction] == "push") {
+
+			// }
+			// else if (binaryCodes[instruction] == "pop") {
+
+			// }
 
 			else if (binaryCodes[instruction] == "add") {
 				const register1 = this.data.getUint8(++this.instructionPointer)*4

@@ -34,6 +34,9 @@ const Modlite_compiler = {
 		"load",
 		"staticTransfer",
 		"dynamicTransfer",
+
+		// "push",
+		// "pop",
 	
 		"add",
 		"subtract",
@@ -950,10 +953,10 @@ Modlite_compiler.compileCode = (rootPath) => {
 				functionId: undefined,
 				expectedReturnType: undefined,
 				startAssembly: [
-					"!load", "0x00000004", "0x01", "\n",
-
-					"!load", "0x11111111", "0x00", "\n",
+					"!load", "0xFFFFFFFF", "0x00", "\n",
 					"!dynamicTransfer|01", "0x00", "0x09", "\n",
+
+					"!load", "0x00000004", "0x01", "\n",
 					"!subtract", "0x09", "0x01", "\n",
 				],
 				mainAssembly: [],
@@ -969,12 +972,10 @@ Modlite_compiler.compileCode = (rootPath) => {
 			assembly.push(...context.mainAssembly)
 
 			for (const key in context.constants) {
-				assembly.push("@"+key, "\n", "$"+context.constants[key])
+				assembly.push("@"+key, "\n", "$"+context.constants[key], "0x00", "\n")
 			}
 
 		}
-
-		console.log("mainAssembly", assembly)
 
 		if (logEverything) {
 			console.log("assembly:\n " + assembly.join(" ") + "\n")
@@ -1068,7 +1069,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				variables[0][thing.name] = {
 					type: "Function",
 					public: thing.public,
-					ID: path + " " + thing.name,
+					ID: path + "_" + thing.name,
 					args: thing.args,
 					return: thing.return,
 				}
@@ -1219,7 +1220,6 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 					for (let i = 0; i < variables[0][thing.name].args.length; i++) {
 						// pop from the stack
 						pushToAssembly(["!add", "0x09", "0x01"])
-						pushToAssembly(["!dynamicTransfer|10", "0x09", "0x00"])
 					}
 				}
 				
@@ -1287,13 +1287,8 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				const constantID = "string"+Object.keys(context.constants).length
 
 				context.constants[constantID] = thing.value
-
-				// pushToAssembly(["!staticTransfer|10", "&"+constantID, "0x00"])
-				pushToAssembly(["!load", "&"+constantID, "0x00"])
-				pushToAssembly(["!dynamicTransfer|01", "0x00", "0x09"])
-
-				pushToAssembly(["!load", "0x00000004", "0x01"])
-				pushToAssembly(["!subtract", "0x09", "0x01"])
+				
+				pushToAssembly_push("&"+constantID)
 
 				types.push({type: "String"})
 			}
@@ -1377,14 +1372,19 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 					if (buildType == "debug") debugLog(`call ${variable.type} ID: ${variable.ID} (${thing.lineNumber})`)
 
-					const typelist = assemblyLoop(assembly, thing.args, "call", buildType, ["expectValues"])
+					let typelist
 
 					if (variable.type == "ExposedFunction") {
+						typelist = assemblyLoop(assembly, thing.args, "call", buildType, ["expectValues"])
 						pushToAssembly(["!load", variable.ID, "0x00"])
 						pushToAssembly(["!externalJump"])
 					} else {
-						err("not supported")
 						const return_location = "return_location" + context.uniqueIdentifierCounter++
+						pushToAssembly_push("&"+return_location)
+						typelist = assemblyLoop(assembly, thing.args, "call", buildType, ["expectValues"])
+						pushToAssembly(["!load", "&"+variable.ID, "0x00"])
+						pushToAssembly(["!jump"])
+						pushToAssembly(["@" + return_location])
 					}
 
 					if (typelist.length > variable.args.length) err(`too many arguments for ${name} requires ${variable.args.length}`)
@@ -1559,6 +1559,21 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 		function pushToAssembly(data) {
 			assembly.push(...data, "\n")
+		}
+
+		function pushToAssembly_push(data) {
+			pushToAssembly(["!load", data, "0x00"])
+			pushToAssembly(["!dynamicTransfer|01", "0x00", "0x09"])
+
+			pushToAssembly(["!load", "0x00000004", "0x01"])
+			pushToAssembly(["!subtract", "0x09", "0x01"])
+
+		}
+		function pushToAssembly_pop() {
+			pushToAssembly(["!load", "0x00000004", "0x01"])
+			pushToAssembly(["!add", "0x09", "0x01"])
+
+			pushToAssembly(["!dynamicTransfer|10", "0x09", "0x00"])
 		}
 	}
 
