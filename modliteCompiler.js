@@ -787,7 +787,7 @@ Modlite_compiler.assemblyToOperationCode = (assembly) => {
 	let index = 0
 
 	let dataLength = 0
-	let buffer = new ArrayBuffer(1024)
+	let buffer = new ArrayBuffer(2048)
 	let data = new DataView(buffer);
 
 	let locations = {}
