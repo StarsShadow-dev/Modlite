@@ -950,15 +950,11 @@ Modlite_compiler.compileCode = (rootPath) => {
 				types: [],
 				recursionHistory: [],
 
+				// not used right now
 				functionId: undefined,
-				expectedReturnType: undefined,
-				startAssembly: [
-					"!load", "0xFFFFFFFF", "0x00", "\n",
-					"!dynamicTransfer|01", "0x00", "0x09", "\n",
 
-					"!load", "0x00000004", "0x01", "\n",
-					"!subtract", "0x09", "0x01", "\n",
-				],
+				expectedReturnType: undefined,
+				startAssembly: [],
 				mainAssembly: [],
 				constants: {},
 			}
@@ -969,6 +965,10 @@ Modlite_compiler.compileCode = (rootPath) => {
 			if (logEverything) console.log("files:\n", JSON.stringify(files) + "\n")
 
 			assembly.push(...context.startAssembly)
+			assembly.push(
+				"!load", "0xFFFFFFFF", "0x00", "\n",
+				"!jump", "\n",
+			)
 			assembly.push(...context.mainAssembly)
 
 			for (const key in context.constants) {
@@ -1212,7 +1212,12 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				
 				pushToAssembly([`@${variable.ID}`])
 
-				assemblyLoop(assembly, thing.codeBlock, "function", buildType, ["newScope"])
+				if (thing.name == "main") {
+					// if name == "main" use "context.startAssembly" instead of "assembly"
+					assemblyLoop(context.startAssembly, thing.codeBlock, "function", buildType, ["newScope"])
+				} else {
+					assemblyLoop(assembly, thing.codeBlock, "function", buildType, ["newScope"])
+				}
 
 				pushToAssembly(["!load", "0x00000004", "0x01"])
 
