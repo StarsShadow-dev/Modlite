@@ -1,7 +1,7 @@
 import { print } from "StandardLibrary"
 
 function main() Void {
-	print("in main1")
+	print("in main")
 	spam()
 }
 

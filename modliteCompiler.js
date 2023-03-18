@@ -832,7 +832,7 @@ Modlite_compiler.assemblyToOperationCode = (assembly) => {
 				references: []
 			}
 
-			locations[thing.slice(1, thing.length)].references.push(dataLength + 1)
+			locations[thing.slice(1, thing.length)].references.push(dataLength)
 			dataLength += 4
 		}
 
@@ -880,10 +880,7 @@ Modlite_compiler.assemblyToOperationCode = (assembly) => {
 		for (let i = 0; i < location.references.length; i++) {
 			const reference = location.references[i]
 			
-			for (var i2 = 4; i2 > 0; i2--) {
-				const byte = (location.position >> (i2 * 8)) & 0xFF
-				data.setUint8(reference+i2-2, byte)
-			}
+			data.setUint32(reference, location.position)
 		}
 	}
 
@@ -926,6 +923,8 @@ Modlite_compiler.compileCode = (rootPath) => {
 
 	if (!conf.saveTo) throw "no saveTo in conf"
 
+	if (!conf.flags) throw "no flags in conf"
+
 	try {
 		let assembly = []
 
@@ -942,6 +941,8 @@ Modlite_compiler.compileCode = (rootPath) => {
 		} else {
 
 			let context = {
+				globalFlags: conf.flags,
+
 				rootPath: rootPath,
 				globalCount: 1,
 				uniqueIdentifierCounter: 0,
@@ -1209,28 +1210,29 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				}
 				context.functionId = variable.ID
 				context.expectedReturnType = variable.return
-				
-				pushToAssembly([`@${variable.ID}`])
 
 				if (thing.name == "main") {
 					// if name == "main" use "context.startAssembly" instead of "assembly"
+					context.startAssembly.push(`@${variable.ID}`, "\n")
 					assemblyLoop(context.startAssembly, thing.codeBlock, "function", buildType, ["newScope"])
 				} else {
+					pushToAssembly([`@${variable.ID}`])
+
 					assemblyLoop(assembly, thing.codeBlock, "function", buildType, ["newScope"])
-				}
 
-				pushToAssembly(["!load", "0x00000004", "0x01"])
+					pushToAssembly(["!load", "0x00000004", "0x01"])
 
-				if (variables[0][thing.name].args.length > 0) {
-					for (let i = 0; i < variables[0][thing.name].args.length; i++) {
-						// pop from the stack
-						pushToAssembly(["!add", "0x09", "0x01"])
+					if (variables[0][thing.name].args.length > 0) {
+						for (let i = 0; i < variables[0][thing.name].args.length; i++) {
+							// pop from the stack
+							pushToAssembly(["!add", "0x09", "0x01"])
+						}
 					}
+					
+					pushToAssembly(["!add", "0x09", "0x01"])
+					pushToAssembly(["!dynamicTransfer|10", "0x09", "0x00"])
+					pushToAssembly(["!jump"])
 				}
-				
-				pushToAssembly(["!add", "0x09", "0x01"])
-				pushToAssembly(["!dynamicTransfer|10", "0x09", "0x00"])
-				pushToAssembly(["!jump"])
 
 				types.push(undefined)
 			}
@@ -1289,9 +1291,24 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			else if (thing.type == "string") {
 				if (!flags.includes("expectValues")) err(`unexpected ${thing.type}`)
 
-				const constantID = "string"+Object.keys(context.constants).length
+				let constantID
 
-				context.constants[constantID] = thing.value
+				if (context.globalFlags.includes("simplifyConstants")) {
+					for (const key in context.constants) {
+						if (context.constants[key] == thing.value) {
+							constantID = key
+						}
+					}
+					if (!constantID) {
+						constantID = "string"+Object.keys(context.constants).length
+
+						context.constants[constantID] = thing.value
+					}
+				} else {
+					constantID = "string"+Object.keys(context.constants).length
+
+					context.constants[constantID] = thing.value
+				}
 				
 				pushToAssembly_push("&"+constantID)
 

@@ -1,5 +1,6 @@
 {
 	"entry": "main.modlite",
 	"saveTo": "../program.cmodlite",
-	"asAssembly": true
+	"asAssembly": true,
+	"flags": []
 }

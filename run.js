@@ -5,17 +5,25 @@ import ModliteRunTime from "./virtualMachine/modlite.js"
 
 const path = process.argv[2]
 
+let size = process.argv[3]
+
+if (size) {
+	size = Number(size)
+} else {
+	size = 2048
+}
+
 if (!path) throw "no path specified"
-
-const size = 1024
-
-const runTime = new ModliteRunTime(size)
 
 const binary = fs.readFileSync(path, "binary")
 
-if (binary.length > size) throw "binary too big"
+if (binary.length > size) {
+	console.log("error binary too big")
+	process.exit(1)
+}
 
-// slow...
+const runTime = new ModliteRunTime(size)
+
 for (let i = 0; i < binary.length; i++) {
 	const character = binary[i]
 	// console.log(`loading character: ${character}(${character.charCodeAt(0)})`)

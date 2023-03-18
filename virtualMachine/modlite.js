@@ -31,9 +31,11 @@ class ModliteRunTime {
 	exposedFunctions = [
 		() => {
 			const location = this.pop()
-			const value = this.readString(location)
 
 			// console.log("location", location)
+
+			const value = this.readString(location)
+
 			// console.log("value", value)
 
 			console.log("[print]", value)
@@ -69,7 +71,7 @@ class ModliteRunTime {
 	pop() {
 		const stackPointer = this.registers.getUint32(9*4)+4
 		this.registers.setUint32(9*4, stackPointer)
-		
+
 		return this.data.getUint32(stackPointer)
 	}
 
@@ -77,6 +79,7 @@ class ModliteRunTime {
 		let i = location
 		let string = ""
 		while(true) {
+			// console.log(i)
 			const byte = this.data.getUint8(i++)
 			if (byte == 0) {
 				return string
@@ -117,12 +120,12 @@ class ModliteRunTime {
 
 			const instruction = byte >> 2
 			
-			console.log(`${this.instructionPointer} - [${byteToHex(byte)}] - ${binaryCodes[instruction]} {${(byte & 0b00000010) != 0} | ${(byte & 0b00000001) != 0}}`)
+			// console.log(`${this.instructionPointer} - [${byteToHex(byte)}] - ${binaryCodes[instruction]} {${(byte & 0b00000010) != 0} | ${(byte & 0b00000001) != 0}}`)
 
 			if (binaryCodes[instruction] == "jump") {
 				const location = this.registers.getUint32(0)
 
-				console.log("jump", location)
+				// console.log("jump", location)
 
 				// a jump to 0xFFFFFFFF ends the program
 				if (location == 4294967295) return
@@ -167,6 +170,8 @@ class ModliteRunTime {
 
 				const register = this.data.getUint8(++this.instructionPointer)*4
 
+				// console.log("load", value, register)
+
 				this.registers.setUint32(register, value)
 			}
 			else if (binaryCodes[instruction] == "staticTransfer") {
@@ -182,7 +187,7 @@ class ModliteRunTime {
 					// from register
 					const register = this.data.getUint8(++this.instructionPointer)*4
 
-					console.log(this.registers.byteLength, register)
+					// console.log(this.registers.byteLength, register)
 
 					value = this.registers.getUint32(register)
 				}
@@ -214,6 +219,8 @@ class ModliteRunTime {
 					// from register
 					value = this.registers.getUint32(register1)
 				}
+
+				// console.log("dynamicTransfer value", value)
 
 				const register2 = this.data.getUint8(++this.instructionPointer)*4
 
