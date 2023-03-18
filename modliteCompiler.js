@@ -14,15 +14,17 @@ const Modlite_compiler = {
 	string: "",
 
 	reservedWords: [
+		"function",
 		"if",
 		"else",
 		"switch",
 		"while",
-		"true",
-		"false",
 		"as",
 		"class",
 		"var",
+
+		"true",
+		"false",
 	],
 	
 	binaryCodes: [
