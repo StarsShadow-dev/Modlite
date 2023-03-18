@@ -15,6 +15,9 @@ const Modlite_compiler = {
 
 	reservedWords: [
 		"function",
+		"import",
+		"from",
+		
 		"if",
 		"else",
 		"switch",
