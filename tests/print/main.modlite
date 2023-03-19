@@ -1,11 +1,11 @@
 import { print } from "StandardLibrary"
 
-function main() Void {
+function main(): Void {
 	print("in main")
 	spam()
 }
 
-function spam() Void {
+function spam(): Void {
 	print("spam") print("spam") print("spam") print("spam") print("spam")
 	print("spam") print("spam") print("spam") print("spam") print("spam")
 	print("spam") print("spam") print("spam") print("spam") print("spam")

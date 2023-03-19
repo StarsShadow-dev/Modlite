@@ -559,6 +559,11 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 			}
 		}
 
+		// eat the ":"
+		const colon = next_token()
+
+		if (colon.value != ":") err("expected colon and then return type")
+
 		const Return = next_token()
 		if (Return.type != "word") err("functions must have a specified return type (if your function does not return anything specify `Void`)")
 
