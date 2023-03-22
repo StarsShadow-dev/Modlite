@@ -53,8 +53,16 @@ const Modlite_compiler = {
 	]
 }
 
-function getCharacter(string) {
-	return string.split(' ').map(char => String.fromCharCode(parseInt(char, 10))).join('');
+function toHex(number, length) {
+	let hex
+
+	hex = Math.abs(number).toString(16)
+
+	while (hex.length < length) {
+		hex = "0" + hex
+	}
+
+	return "0x" + hex
 }
 
 // custom tokenizer/lexar
@@ -1230,15 +1238,8 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 					assemblyLoop(assembly, thing.codeBlock, "function", buildType, ["newScope"])
 
-					pushToAssembly(["!load", "0x00000004", "0x01"])
-
-					if (variables[0][thing.name].args.length > 0) {
-						for (let i = 0; i < variables[0][thing.name].args.length; i++) {
-							// pop from the stack
-							pushToAssembly(["!add", "0x09", "0x01"])
-						}
-					}
-					
+					// pop all arguments and the return address off the stack
+					pushToAssembly(["!load", toHex((variables[0][thing.name].args.length*4)+4, 8), "0x01"])
 					pushToAssembly(["!add", "0x09", "0x01"])
 					pushToAssembly(["!dynamicTransfer|10", "0x09", "0x00"])
 					pushToAssembly(["!jump"])
@@ -1248,11 +1249,15 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			}
 
 			else if (thing.type == "table") {
+				err("tables are not available right now")
 
 				types.push({type: "Table"})
 			}
 
 			else if (thing.type == "class") {
+
+				err("classes are not available right now")
+
 				for (let i = 0; i < thing.value.length; i++) {
 					const inClass = thing.value[i];
 					if (inClass.type == "function") {
@@ -1275,6 +1280,8 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 			else if (thing.type == "memberAccess") {
 				if (!flags.includes("expectValues")) err(`unexpected ${thing.type}`)
+
+				err("memberAccess is not available right now")
 
 				const typelist = assemblyLoop(assembly, thing.left, "memberAccess", buildType, ["expectValues"])
 
@@ -1319,8 +1326,12 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 					context.constants[constantID] = thing.value
 				}
-				
-				pushToAssembly_push("&"+constantID)
+
+				if (flags.includes("valueToR1")) {
+					pushToAssembly(["!load", "&"+constantID, "0x01"])
+				} else {
+					pushToAssembly_push("&"+constantID)
+				}
 
 				types.push({type: "String"})
 			}
@@ -1328,11 +1339,27 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			else if (thing.type == "number") {
 				if (!flags.includes("expectValues")) err(`unexpected ${thing.type}`)
 
+				err("numbers are not available right now")
+
 				types.push({type: "Number"})
 			}
 			
 			else if (thing.type == "bool") {
 				if (!flags.includes("expectValues")) err(`unexpected ${thing.type}`)
+
+				if (flags.includes("valueToR1")) {
+					if (thing.value) {
+						pushToAssembly(["!load", "0x00000001", "0x01"])
+					} else {
+						pushToAssembly(["!load", "0x00000000", "0x01"])
+					}
+				} else {
+					if (thing.value) {
+						pushToAssembly_push("0x00000001")
+					} else {
+						pushToAssembly_push("0x00000000")
+					}
+				}
 
 				types.push({type: "Bool"})
 			}
@@ -1373,16 +1400,42 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				const variable = getVariable(thing.value)
 				if (!variable) err("variable " + thing.value + " does not exist")
 
-				if (variable.type == "Function") {
+				if (flags.includes("valueToR1")) {
+					if (variable.type == "Function") {
 
-					types.push({type: variable.type})
-				} else {
-					if (variable.global) {
+						pushToAssembly(["!load", "&"+variable.ID, "0x01"])
+
+						types.push({type: variable.type})
 					} else {
-						if (!variable.initialized) err("variable " + thing.value + " not initialized")
-					}
+						if (variable.global) {
+							err("err")
+						} else {
+							if (!variable.initialized) err("variable " + thing.value + " not initialized")
 
-					types.push(variable.type)
+							pushToAssembly(["!load", toHex(Math.abs(variable.index)*4, 8), "0x00"])
+
+							pushToAssembly(["!add", "0x00", "0x09"])
+
+							pushToAssembly(["!dynamicTransfer|10", "0x00", "0x01"])
+						}
+	
+						types.push({type: variable.type})
+					}
+				} else {
+					if (variable.type == "Function") {
+						
+						pushToAssembly_push("&"+variable.ID)
+
+						types.push({type: variable.type})
+					} else {
+						err("err")
+						if (variable.global) {
+						} else {
+							if (!variable.initialized) err("variable " + thing.value + " not initialized")
+						}
+	
+						types.push({type: variable.type})
+					}
 				}
 			}
 			
@@ -1501,16 +1554,32 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				const if_true = "if_true" + context.uniqueIdentifierCounter++
 				const if_end = "if_end" + context.uniqueIdentifierCounter++
 
-				const typelist = assemblyLoop(assembly, thing.condition, "if", buildType, ["expectValues"])
+				const typelist = assemblyLoop(assembly, thing.condition, "if", buildType, ["expectValues", "valueToR1"])
 
-				if (typelist.length != 1) err("if statements require 1 bool")
+				if (typelist.length != 1) err("if statements require 1 Bool")
 				if (typelist[0].type != "Bool") err(`if statement got type ${typelist[0].type} but expected type Bool`)
 
 				if (thing.falseCodeBlock) {
+					pushToAssembly(["!load", "&"+if_true, "0x00"])
+					pushToAssembly(["!conditionalJump"])
+
 					assemblyLoop(assembly, thing.falseCodeBlock, "if", buildType, [])
+
+					pushToAssembly(["!load", "&"+if_end, "0x00"])
+					pushToAssembly(["!jump"])
+
+					pushToAssembly(["@" + if_true])
+
 					assemblyLoop(assembly, thing.trueCodeBlock, "if", buildType, [])
+
+					pushToAssembly(["@" + if_end])
 				} else {
+					pushToAssembly(["!load", "&"+if_end, "0x00"])
+					pushToAssembly(["!notConditionalJump"])
+
 					assemblyLoop(assembly, thing.trueCodeBlock, "if", buildType, [])
+
+					pushToAssembly(["@" + if_end])
 				}
 
 				types.push(undefined)

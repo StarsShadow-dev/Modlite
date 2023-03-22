@@ -1,19 +1,14 @@
-import { print } from "StandardLibrary"
+import { printLine as print } from "StandardLibrary"
 
 function main(): Void {
 	print("in main")
-	spam()
+	printBool(true)
 }
 
-function spam(): Void {
-	print("spam") print("spam") print("spam") print("spam") print("spam")
-	print("spam") print("spam") print("spam") print("spam") print("spam")
-	print("spam") print("spam") print("spam") print("spam") print("spam")
-	print("spam") print("spam") print("spam") print("spam") print("spam")
-	print("spam") print("spam") print("spam") print("spam") print("spam")
-	print("spam") print("spam") print("spam") print("spam") print("spam")
-	print("spam") print("spam") print("spam") print("spam") print("spam")
-	print("spam") print("spam") print("spam") print("spam") print("spam")
-	print("spam") print("spam") print("spam") print("spam") print("spam")
-	print("spam") print("spam") print("spam") print("spam") print("spam")
+function printBool(bool: Bool): Void {
+	if (bool) {
+		print("[Bool] true")
+	} else {
+		print("[Bool] false")
+	}
 }

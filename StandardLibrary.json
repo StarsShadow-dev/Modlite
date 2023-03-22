@@ -1,11 +1,11 @@
 {
-	"print": {
+	"printLine": {
 		"type": "ExposedFunction",
 		"ID": "0x00000000",
 		"args": [
 			{
 				"name": "message",
-				"type": "Any"
+				"type": "String"
 			}
 		],
 		"return": "Void"

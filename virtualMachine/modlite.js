@@ -1,5 +1,5 @@
 /*
-	ModliteRunTime version 21
+	ModliteRunTime version 22
 
 	For JavaScript.
 	Can run a web browser or node.
@@ -135,7 +135,9 @@ class ModliteRunTime {
 			}
 			else if (binaryCodes[instruction] == "conditionalJump") {
 				const location = this.registers.getUint32(0)
-				const condition = this.registers.getUint32(2*4) == 1
+				const condition = this.registers.getUint32(1*4) == 1
+
+				// console.log("conditionalJump", location, this.registers.getUint32(1*4))
 
 				if (condition) {
 					// a jump to 0xFFFFFFFF ends the program
@@ -147,7 +149,9 @@ class ModliteRunTime {
 			}
 			else if (binaryCodes[instruction] == "notConditionalJump") {
 				const location = this.registers.getUint32(0)
-				const condition = this.registers.getUint32(2*4) == 1
+				const condition = this.registers.getUint32(1*4) == 1
+
+				// console.log("notConditionalJump", location, this.registers.getUint32(1*4))
 
 				if (!condition) {
 					// a jump to 0xFFFFFFFF ends the program
