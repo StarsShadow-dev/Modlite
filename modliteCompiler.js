@@ -398,8 +398,6 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 			} else if (token.value == "]") {
 				if (end != token.value) err(`expected ${end} got ${token.value}`)
 				return build
-			} else if (token.value == "!") {
-				err("separator not available " + token.value)
 			}
 		}
 
@@ -419,12 +417,29 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 					right: [Modlite_compiler.parse(context, tokens, true)[0]],
 				})
 			} else if (token.value == ".") {
+				if (prior.type != "word") err("memberAccess expected word before `.`")
+
 				const next = next_token()
 
-				if (next.type != "word") err("memberAccess expected word before `.`")
+				if (next.type != "word") err("memberAccess expected word after `.`")
 
 				push_to_build({
 					type: "memberAccess",
+					left: [prior],
+					right: [{
+						type: "string",
+						value: next.value,
+					}],
+				})
+			} else if (token.value == "!") {
+				if (prior.type != "word") err("typeCast expected word before `!`")
+
+				const next = next_token()
+
+				if (next.type != "word") err("typeCast expected type name after `!`")
+
+				push_to_build({
+					type: "typeCast",
 					left: [prior],
 					right: [{
 						type: "string",
@@ -1319,6 +1334,12 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				}
 
 				types.push(typelist[0])
+			}
+
+			else if (thing.type == "typeCast") {
+				const type = assemblyLoop(assembly, thing.left, "typeCast", buildType, ["expectValues"])[0]
+
+				types.push({type: thing.right[0].value})
 			}
 			
 			else if (thing.type == "string") {
