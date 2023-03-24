@@ -1064,6 +1064,8 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 	let variables = [{}]
 	let recursionHistory = []
 
+	let outputRegister = "0x00"
+
 	files[path] = {}
 
 	for (let index = 0; index < build_in.length; index++) {
@@ -1337,7 +1339,9 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			}
 
 			else if (thing.type == "typeCast") {
-				const type = assemblyLoop(assembly, thing.left, "typeCast", buildType, ["expectValues"])[0]
+				if (!flags.includes("expectValues")) err(`unexpected ${thing.type}`)
+
+				const type = assemblyLoop(assembly, thing.left, "typeCast", buildType, flags)[0]
 
 				types.push({type: thing.right[0].value})
 			}
@@ -1364,8 +1368,8 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 					context.constants[constantID] = thing.value
 				}
 
-				if (flags.includes("valueToR1")) {
-					pushToAssembly(["!load", "&"+constantID, "0x01"])
+				if (flags.includes("valueToRegister")) {
+					pushToAssembly(["!load", "&"+constantID, outputRegister])
 				} else {
 					pushToAssembly_push("&"+constantID)
 				}
@@ -1384,11 +1388,11 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			else if (thing.type == "bool") {
 				if (!flags.includes("expectValues")) err(`unexpected ${thing.type}`)
 
-				if (flags.includes("valueToR1")) {
+				if (flags.includes("valueToRegister")) {
 					if (thing.value) {
-						pushToAssembly(["!load", "0x00000001", "0x01"])
+						pushToAssembly(["!load", "0x00000001", outputRegister])
 					} else {
-						pushToAssembly(["!load", "0x00000000", "0x01"])
+						pushToAssembly(["!load", "0x00000000", outputRegister])
 					}
 				} else {
 					if (thing.value) {
@@ -1437,14 +1441,16 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				const variable = getVariable(thing.value)
 				if (!variable) err("variable " + thing.value + " does not exist")
 
-				if (flags.includes("valueToR1")) {
+				if (flags.includes("valueToRegister")) {
 					if (variable.type == "Function") {
 
-						pushToAssembly(["!load", "&"+variable.ID, "0x01"])
+						pushToAssembly(["!load", "&"+variable.ID, outputRegister])
 
 						types.push({type: variable.type})
 					} else if (variable.type == "Macro") {
-						err("error")
+						assemblyLoop(assembly, variable.codeBlock, "macro", buildType, flags)
+
+						types.push({type: variable.return})
 					} else {
 						if (variable.global) {
 							err("no global")
@@ -1455,7 +1461,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 							pushToAssembly(["!add", "0x00", "0x09"])
 
-							pushToAssembly(["!dynamicTransfer|10", "0x00", "0x01"])
+							pushToAssembly(["!dynamicTransfer|10", "0x00", outputRegister])
 						}
 	
 						types.push({type: variable.type})
@@ -1466,7 +1472,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 						types.push({type: variable.type})
 					} else if (variable.type == "Macro") {
-						assemblyLoop(assembly, variable.codeBlock, "macro", buildType, ["expectValues"])
+						assemblyLoop(assembly, variable.codeBlock, "macro", buildType, flags)
 
 						types.push({type: variable.return})
 					} else {
@@ -1507,9 +1513,9 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 						pushToAssembly_push("&"+return_location)
 						typelist = assemblyLoop(assembly, thing.args, "call", buildType, ["expectValues"])
-
-						pushToAssembly(["!load", "&"+variable.ID, "0x00"])
-						assemblyLoop(assembly, [thing.name], "call", buildType, ["expectValues", "valueToR1"])
+						
+						outputRegister = "0x00"
+						assemblyLoop(assembly, [thing.name], "call", buildType, ["expectValues", "valueToRegister"])
 						pushToAssembly(["!jump"])
 						pushToAssembly(["@" + return_location])
 
@@ -1530,7 +1536,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 							variables[level+1][arg.name] = {
 								type: "Macro",
 								codeBlock: [thing.args[i]],
-								return: arg.type,
+								return: typelist[i].type,
 							}
 						}
 						context.expectedReturnType = variable.return
@@ -1622,7 +1628,8 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				const if_true = "if_true" + context.uniqueIdentifierCounter++
 				const if_end = "if_end" + context.uniqueIdentifierCounter++
 
-				const typelist = assemblyLoop(assembly, thing.condition, "if", buildType, ["expectValues", "valueToR1"])
+				outputRegister = "0x01"
+				const typelist = assemblyLoop(assembly, thing.condition, "if", buildType, ["expectValues", "valueToRegister"])
 
 				if (typelist.length != 1) err("if statements require 1 Bool")
 				if (typelist[0].type != "Bool") err(`if statement got type ${typelist[0].type} but expected type Bool`)
@@ -1713,6 +1720,17 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 					assemblyLoop(assembly, thing.build, undefined, "optimize", [])
 				} else if (thing.name == "macros") {
 					// do nothing
+				} else if (thing.name == "if_macro_type") {
+					if (thing.args.length != 2) err("if_macro_type expects two arguments")
+					const variable = getVariable(thing.args[0])
+
+					if (!variable) err(`no macro named ${thing.args[0]}`)
+
+					if (variable.type != "Macro") err(`${thing.args[0]} is not a macro`)
+
+					if (variable.return == thing.args[1]) {
+						assemblyLoop(assembly, thing.build, undefined, buildType, flags)
+					}
 				} else {
 					err(`unknown compiler setting ${thing.name}`)
 				}

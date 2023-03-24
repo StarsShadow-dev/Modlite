@@ -1,26 +1,13 @@
 import { printLine } from "StandardLibrary"
 
 function main(): Void {
-	// print("in main")
+	print("in main")
 
-	// printBool(false)
+	print(true)
 
-	print5x("testing macros")
+	print(false)
 
-	// test("msg1" "msg2")
-}
-
-// function printBool(bool: Bool): Void {
-// 	if (bool) {
-// 		print("[Bool] true")
-// 	} else {
-// 		print("[Bool] false")
-// 	}
-// }
-
-@macros
-function print(value: Any): Void {
-	printLine(value! String)
+	print5x("print5x")
 }
 
 function print5x(msg: String): Void {
@@ -29,8 +16,22 @@ function print5x(msg: String): Void {
 @end
 }
 
-// function test(msg1: String msg2: String): Void {
-// 	print(msg1)
-// 	print(msg2)
-// }
+@macros
+
+function print(value: Any): Void {
+
+@if_macro_type<value Bool>
+	if (value! Bool) {
+		printLine("[Bool] true")
+	} else {
+		printLine("[Bool] false")
+	}
+@end
+
+@if_macro_type<value String>
+	printLine(value! String)
+@end
+
+}
+
 @end
