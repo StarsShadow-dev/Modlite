@@ -1,14 +1,36 @@
-import { printLine as print } from "StandardLibrary"
+import { printLine } from "StandardLibrary"
 
 function main(): Void {
-	print("in main")
-	printBool(true)
+	// print("in main")
+
+	// printBool(false)
+
+	print5x("testing macros")
+
+	// test("msg1" "msg2")
 }
 
-function printBool(bool: Bool): Void {
-	if (bool) {
-		print("[Bool] true")
-	} else {
-		print("[Bool] false")
-	}
+// function printBool(bool: Bool): Void {
+// 	if (bool) {
+// 		print("[Bool] true")
+// 	} else {
+// 		print("[Bool] false")
+// 	}
+// }
+
+@macros
+function print(message: String): Void {
+	printLine(message)
 }
+
+function print5x(msg: String): Void {
+@duplicate<5>
+	print(msg)
+@end
+}
+
+// function test(msg1: String msg2: String): Void {
+// 	print(msg1)
+// 	print(msg2)
+// }
+@end

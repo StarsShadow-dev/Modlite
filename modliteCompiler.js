@@ -964,7 +964,6 @@ Modlite_compiler.compileCode = (rootPath) => {
 				rootPath: rootPath,
 				globalCount: 1,
 				uniqueIdentifierCounter: 0,
-				testCounter: 1,
 
 				types: [],
 				recursionHistory: [],
@@ -1084,15 +1083,33 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			if (thing.type == "function") {
 				if (level != 0) err("functions can only be defined at top level")
 				if (variables[0][thing.name]) err(`variable ${thing.name} already exists`)
-		
-				variables[0][thing.name] = {
-					type: "Function",
-					public: thing.public,
-					ID: path + "_" + thing.name,
-					args: thing.args,
-					return: thing.return,
+
+				if (flags.includes("macros")) {
+					variables[0][thing.name] = {
+						type: "Macro",
+						codeBlock: thing.codeBlock,
+						public: thing.public,
+						ID: path + "_" + thing.name,
+						args: thing.args,
+						return: thing.return,
+					}
+				} else {
+					variables[0][thing.name] = {
+						type: "Function",
+						public: thing.public,
+						ID: path + "_" + thing.name,
+						args: thing.args,
+						return: thing.return,
+					}
 				}
 				files[path][thing.name] = variables[0][thing.name]
+			}
+
+			// set up the macro early
+			else if (thing.type == "compilerSetting") {
+				if (thing.name == "macros") {
+					assemblyLoop(assembly, thing.build, undefined, buildType, ["macros"])
+				}
 			}
 			
 			else if (thing.type == "class") {
@@ -1201,9 +1218,6 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				}
 			}
 		}
-
-		if (flags.includes("newScope") && level != 0) {
-		}
 		
 		//
 		// main loop
@@ -1215,34 +1229,38 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			
 			if (thing.type == "function") {
 				const variable = getVariable(thing.name)
-				variables[level+1] = {}
+				if (variable.type != "Macro") {
+					variables[level+1] = {}
 
-				for (let i = 0; i < thing.args.length; i++) {
-					const arg = thing.args[i];
-					variables[level+1][arg.name] = {
-						type: arg.type,
-						index: -1-i,
-						global: false,
-						initialized: true,
+					for (let i = 0; i < thing.args.length; i++) {
+						const arg = thing.args[i];
+						variables[level+1][arg.name] = {
+							type: arg.type,
+							index: -1-i,
+							global: false,
+							initialized: true,
+						}
 					}
-				}
-				context.functionId = variable.ID
-				context.expectedReturnType = variable.return
+					context.functionId = variable.ID
+					context.expectedReturnType = variable.return
 
-				if (thing.name == "main") {
-					// if name == "main" use "context.startAssembly" instead of "assembly"
-					context.startAssembly.push(`@${variable.ID}`, "\n")
-					assemblyLoop(context.startAssembly, thing.codeBlock, "function", buildType, ["newScope"])
-				} else {
-					pushToAssembly([`@${variable.ID}`])
+					if (thing.name == "main") {
+						if (variable.macro) err("the main function can not be a macro (move the main function outside of the `@macros` compiler setting)")
 
-					assemblyLoop(assembly, thing.codeBlock, "function", buildType, ["newScope"])
+						// if name == "main" use "context.startAssembly" instead of "assembly"
+						context.startAssembly.push(`@${variable.ID}`, "\n")
+						assemblyLoop(context.startAssembly, thing.codeBlock, "function", buildType, ["newScope"])
+					} else {
+						pushToAssembly([`@${variable.ID}`])
 
-					// pop all arguments and the return address off the stack
-					pushToAssembly(["!load", toHex((variables[0][thing.name].args.length*4)+4, 8), "0x01"])
-					pushToAssembly(["!add", "0x09", "0x01"])
-					pushToAssembly(["!dynamicTransfer|10", "0x09", "0x00"])
-					pushToAssembly(["!jump"])
+						assemblyLoop(assembly, thing.codeBlock, "function", buildType, ["newScope"])
+
+						// pop all arguments and the return address off the stack
+						pushToAssembly(["!load", toHex((variables[0][thing.name].args.length*4)+4, 8), "0x01"])
+						pushToAssembly(["!add", "0x09", "0x01"])
+						pushToAssembly(["!dynamicTransfer|10", "0x09", "0x00"])
+						pushToAssembly(["!jump"])
+					}
 				}
 
 				types.push(undefined)
@@ -1265,8 +1283,6 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 						context.functionId = method.ID
 						context.expectedReturnType = method.return
-
-						if (buildType == "debug") debugLog(`in function ${inClass.name} ID: ${method.ID} (${inClass.lineNumber})`)
 
 						assemblyLoop(assembly, inClass.codeBlock, "class", buildType, [])
 						if (method.args.length > 0) {
@@ -1406,13 +1422,15 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 						pushToAssembly(["!load", "&"+variable.ID, "0x01"])
 
 						types.push({type: variable.type})
+					} else if (variable.type == "Macro") {
+						err("error")
 					} else {
 						if (variable.global) {
-							err("err")
+							err("no global")
 						} else {
-							if (!variable.initialized) err("variable " + thing.value + " not initialized")
+							if (!variable.initialized) err("variable " + thing.value + " is not initialized")
 
-							pushToAssembly(["!load", toHex(Math.abs(variable.index)*4, 8), "0x00"])
+							pushToAssembly(["!load", toHex(variable.index*4, 8), "0x00"])
 
 							pushToAssembly(["!add", "0x00", "0x09"])
 
@@ -1423,15 +1441,27 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 					}
 				} else {
 					if (variable.type == "Function") {
-						
 						pushToAssembly_push("&"+variable.ID)
 
 						types.push({type: variable.type})
+					} else if (variable.type == "Macro") {
+						assemblyLoop(assembly, variable.codeBlock, "macro", buildType, ["expectValues"])
+
+						types.push({type: variable.return})
 					} else {
-						err("err")
 						if (variable.global) {
+							err("no global")
 						} else {
-							if (!variable.initialized) err("variable " + thing.value + " not initialized")
+							if (!variable.initialized) err("variable " + thing.value + " is not initialized")
+
+							// push a previous value on the stack onto the top of the stack
+							pushToAssembly(["!load", toHex(variable.index*4, 8), "0x00"])
+							pushToAssembly(["!add", "0x00", "0x09"])
+
+							pushToAssembly(["!dynamicTransfer|11", "0x00", "0x09"])
+
+							pushToAssembly(["!load", "0x00000004", "0x01"])
+							pushToAssembly(["!subtract", "0x09", "0x01"])
 						}
 	
 						types.push({type: variable.type})
@@ -1440,36 +1470,49 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			}
 			
 			else if (thing.type == "call") {
-				let name
-				let variable
-				if (thing.name.type == "word") {
-					name = thing.name.value
-					variable = getVariable(name)
-				} else if (thing.name.type == "memberAccess") {
-					err("memberAccess call is not yet supported")
-				}
+				let name = thing.name.value
+				let variable = getVariable(name)
 
 				if (Modlite_compiler.reservedWords.includes(name)) err(`${name} is a reserved word`)
 
 				if (!variable) err(`(call) variable ${name} does not exist`)
 
-				if (variable.type == "Function" || variable.type == "ExposedFunction") {
-
-					if (buildType == "debug") debugLog(`call ${variable.type} ID: ${variable.ID} (${thing.lineNumber})`)
+				if (variable.type == "Function" || variable.type == "ExposedFunction" || variable.type == "Macro") {
 
 					let typelist
 
-					if (variable.type == "ExposedFunction") {
+					if (variable.type == "Function") {
+						const return_location = "return_location" + context.uniqueIdentifierCounter++
+
+						pushToAssembly_push("&"+return_location)
+						typelist = assemblyLoop(assembly, thing.args, "call", buildType, ["expectValues"])
+
+						pushToAssembly(["!load", "&"+variable.ID, "0x00"])
+						assemblyLoop(assembly, [thing.name], "call", buildType, ["expectValues", "valueToR1"])
+						pushToAssembly(["!jump"])
+						pushToAssembly(["@" + return_location])
+
+					} else if (variable.type == "ExposedFunction") {
 						typelist = assemblyLoop(assembly, thing.args, "call", buildType, ["expectValues"])
 						pushToAssembly(["!load", variable.ID, "0x00"])
 						pushToAssembly(["!externalJump"])
-					} else {
-						const return_location = "return_location" + context.uniqueIdentifierCounter++
-						pushToAssembly_push("&"+return_location)
-						typelist = assemblyLoop(assembly, thing.args, "call", buildType, ["expectValues"])
-						pushToAssembly(["!load", "&"+variable.ID, "0x00"])
-						pushToAssembly(["!jump"])
-						pushToAssembly(["@" + return_location])
+					} else if (variable.type == "Macro") {
+						typelist = assemblyLoop([], thing.args, "call", buildType, ["expectValues"])
+
+						variables[level+1] = {}
+
+						for (let i = variable.args.length-1; i >= 0; i--) {
+							const arg = variable.args[i];
+
+							variables[level+1][arg.name] = {
+								type: "Macro",
+								codeBlock: [thing.args[i]],
+								return: arg.type,
+							}
+						}
+						context.expectedReturnType = variable.return
+
+						assemblyLoop(assembly, variable.codeBlock, "macro", buildType, ["newScope"])
 					}
 
 					if (typelist.length > variable.args.length) err(`too many arguments for ${name} requires ${variable.args.length}`)
@@ -1488,8 +1531,10 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 					if (variable.type == "Function" && variable.return != "Void" && flags.includes("expectValues")) {
 					}
 
-					// if the exposedFunction returns something pop the return value off because it is not being used
+					// if the exposedFunction returns something pop the return value off if it is not being used
 					if (variable.type == "ExposedFunction" && variable.return != "Void" && !flags.includes("expectValues")) {
+						pushToAssembly(["!load", "0x00000004", "0x01"])
+						pushToAssembly(["!add", "0x09", "0x01"])
 					}
 
 					types.push({type: variable.return})
@@ -1635,22 +1680,24 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 			else if (thing.type == "compilerSetting") {
 				if (thing.name == "duplicate") {
+					if (thing.args.length != 1) err("the duplicate compilerSetting expects one argument that tells the compiler how many times to duplicate the code block")
 					for (let index = 0; index < thing.args[0]; index++) {
-						assemblyLoop(assembly, thing.build, undefined, buildType, [])
+						assemblyLoop(assembly, thing.build, undefined, buildType, flags)
 					}
 				} else if (thing.name == "debug") {
 					assemblyLoop(assembly, thing.build, undefined, "debug", [])
 				} else if (thing.name == "optimize") {
 					assemblyLoop(assembly, thing.build, undefined, "optimize", [])
+				} else if (thing.name == "macros") {
+					// do nothing
+				} else {
+					err(`unknown compiler setting ${thing.name}`)
 				}
 			}
 		}
 
-		if (flags.includes("newScope")) {
-			if (level != 0) {
-			}
-
-			delete variables[level]
+		if (flags.includes("newScope")) { 
+			variables.pop()
 			level--
 		}
 
@@ -1679,8 +1726,10 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 	}
 
 	function getVariable(name) {
-		for (let i = 0; i < variables.length; i++) {
-			if (variables[i][name]) return variables[i][name]
+		for (let i = variables.length-1; i >= 0; i--) {
+			if (variables[i][name]) {
+				return variables[i][name]
+			}
 		}
 	}
 

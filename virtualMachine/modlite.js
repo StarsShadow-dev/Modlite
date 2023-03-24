@@ -72,6 +72,8 @@ class ModliteRunTime {
 		const stackPointer = this.registers.getUint32(9*4)+4
 		this.registers.setUint32(9*4, stackPointer)
 
+		// console.log("pop", stackPointer)
+
 		return this.data.getUint32(stackPointer)
 	}
 
@@ -228,10 +230,14 @@ class ModliteRunTime {
 
 				const register2 = this.data.getUint8(++this.instructionPointer)*4
 
+				// console.log("dynamicTransfer register2", register2)
+
 				// set value
 				if ((byte & 0b00000001) != 0) {
 					// to memory specified by the register
 					const location = this.registers.getUint32(register2)
+
+					// console.log("dynamicTransfer location", location)
 
 					this.data.setUint32(location, value)
 				} else {
