@@ -1518,6 +1518,8 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 						pushToAssembly(["!load", variable.ID, "0x00"])
 						pushToAssembly(["!externalJump"])
 					} else if (variable.type == "Macro") {
+						if (!variable.args) err(`${name} is not a callable macro (remove the parentheses and use it like a variable)`)
+
 						typelist = assemblyLoop([], thing.args, "call", buildType, ["expectValues"])
 
 						variables[level+1] = {}

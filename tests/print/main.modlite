@@ -19,8 +19,8 @@ function main(): Void {
 // }
 
 @macros
-function print(message: Any): Void {
-	printLine(message! String)
+function print(value: Any): Void {
+	printLine(value! String)
 }
 
 function print5x(msg: String): Void {
