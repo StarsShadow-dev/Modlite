@@ -10,28 +10,28 @@ function main(): Void {
 	print5x("print5x")
 }
 
+@macro
 function print5x(msg: String): Void {
-@duplicate<5>
-	print(msg)
-@end
+
+	@duplicate<5>
+		print(msg)
+	@end
+
 }
 
-@macros
-
+@macro
 function print(value: Any): Void {
 
-@if_macro_type<value Bool>
-	if (value! Bool) {
-		printLine("[Bool] true")
-	} else {
-		printLine("[Bool] false")
-	}
-@end
+	@if_macro_type<value Bool>
+		if (value! Bool) {
+			printLine("[Bool] true")
+		} else {
+			printLine("[Bool] false")
+		}
+	@end
 
-@if_macro_type<value String>
-	printLine(value! String)
-@end
+	@if_macro_type<value String>
+		printLine(value! String)
+	@end
 
 }
-
-@end

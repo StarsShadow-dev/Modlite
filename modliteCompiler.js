@@ -324,11 +324,18 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 		}
 
 		else if (token.type == "compilerSetting") {
+			let parse
+
 			if (token.value[0] == "end") {
 				if (end != "@end") err("expected " + end)
 				return build
 			}
-			const parse = Modlite_compiler.parse(context, tokens, false, "@end")
+
+			if (token.value[1].length == 0) {
+				parse = Modlite_compiler.parse(context, tokens, false, "any")	
+			} else {
+				parse = Modlite_compiler.parse(context, tokens, false, "@end")
+			}
 
 			push_to_build({
 				type: "compilerSetting",
@@ -523,6 +530,9 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 					return build
 				}	
 			}
+		}
+		if (end == "any") {
+			return build
 		}
 	}
 
@@ -1101,7 +1111,9 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				if (level != 0) err("functions can only be defined at top level")
 				if (variables[0][thing.name]) err(`variable ${thing.name} already exists`)
 
-				if (flags.includes("macros")) {
+				if (flags.includes("macro")) {
+					if (thing.name == "main") err("the main function can not be a macro (remove the `@macro` compiler setting)")
+
 					variables[0][thing.name] = {
 						type: "Macro",
 						codeBlock: thing.codeBlock,
@@ -1124,8 +1136,8 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 			// set up the macro early
 			else if (thing.type == "compilerSetting") {
-				if (thing.name == "macros") {
-					assemblyLoop(assembly, thing.build, undefined, buildType, ["macros"])
+				if (thing.name == "macro") {
+					assemblyLoop(assembly, thing.build, undefined, buildType, ["macro"])
 				}
 			}
 			
@@ -1246,7 +1258,9 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			
 			if (thing.type == "function") {
 				const variable = getVariable(thing.name)
+
 				if (variable.type != "Macro") {
+				
 					variables[level+1] = {}
 
 					for (let i = 0; i < thing.args.length; i++) {
@@ -1262,10 +1276,9 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 					context.expectedReturnType = variable.return
 
 					if (thing.name == "main") {
-						if (variable.macro) err("the main function can not be a macro (move the main function outside of the `@macros` compiler setting)")
-
 						// if name == "main" use "context.startAssembly" instead of "assembly"
 						context.startAssembly.push(`@${variable.ID}`, "\n")
+
 						assemblyLoop(context.startAssembly, thing.codeBlock, "function", buildType, ["newScope"])
 					} else {
 						pushToAssembly([`@${variable.ID}`])
@@ -1278,6 +1291,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 						pushToAssembly(["!dynamicTransfer|10", "0x09", "0x00"])
 						pushToAssembly(["!jump"])
 					}
+
 				}
 
 				types.push(undefined)
@@ -1718,7 +1732,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 					assemblyLoop(assembly, thing.build, undefined, "debug", [])
 				} else if (thing.name == "optimize") {
 					assemblyLoop(assembly, thing.build, undefined, "optimize", [])
-				} else if (thing.name == "macros") {
+				} else if (thing.name == "macro") {
 					// do nothing
 				} else if (thing.name == "if_macro_type") {
 					if (thing.args.length != 2) err("if_macro_type expects two arguments")
