@@ -15,6 +15,7 @@ const Modlite_compiler = {
 
 	reservedWords: [
 		"function",
+		"macro",
 		"import",
 		"from",
 		
@@ -292,6 +293,8 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 				if (next.type != "word") err("unexpected 'public' keyword")
 				if (next.value == "function") {
 					parse_function(next, true)
+				} else if (token.value == "macro") {
+					parse_macro(token, true)
 				} else if (next.value == "var") {
 					parse_definition(next, true)
 				} else if (next.value == "class") {
@@ -301,6 +304,8 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 				}
 			} else if (token.value == "function") {
 				parse_function(token, false)
+			} else if (token.value == "macro") {
+				parse_macro(token, false)
 			} else if (token.value == "var") {
 				parse_definition(token, false)
 			} else if (token.value == "import") {
@@ -595,7 +600,7 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 		// eat the ":"
 		const colon = next_token()
 
-		if (colon.value != ":") err("expected colon and then return type")
+		if (colon.value != ":") err("function expected colon and then return type")
 
 		const Return = next_token()
 		if (Return.type != "word") err("functions must have a specified return type (if your function does not return anything specify `Void`)")
@@ -607,6 +612,52 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 
 		push_to_build({
 			type: "function",
+			public: isPublic,
+			name: name.value,
+			args: args,
+			return: Return.value,
+			codeBlock: codeBlock,
+			lineNumber: token.lineNumber,
+		})
+	}
+
+	function parse_macro(token, isPublic) {
+		const name = next_token()
+
+		let args = []
+
+		// eat the "("
+		next_token()
+		// read until the ")"
+		const argument_tokens = read_until((token) => {
+			return token.type == "separator" && token.value == ")"
+		})
+
+		for (let index = 0; index < argument_tokens.length; index++) {
+			const argument_token = argument_tokens[index];
+			if (argument_token.type == "separator" && argument_token.value == ":") {
+				args.push({
+					name: argument_tokens[index-1].value,
+					type: argument_tokens[index+1].value,
+				})
+			}
+		}
+
+		// eat the ":"
+		const colon = next_token()
+
+		if (colon.value != ":") err("macro expected colon and then return type")
+
+		const Return = next_token()
+		if (Return.type != "word") err("macros must have a specified return type (if your macro does not return anything specify `Void`)")
+
+		// eat the "{"
+		next_token()
+
+		const codeBlock = Modlite_compiler.parse(context, tokens, false, "}")
+
+		push_to_build({
+			type: "macro",
 			public: isPublic,
 			name: name.value,
 			args: args,
@@ -1082,7 +1133,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 		const thing = build_in[index];
 		if (thing.lineNumber) lineNumber = thing.lineNumber
 
-		if (thing.type != "function" && thing.type != "import" && thing.type != "definition" && thing.type != "compilerSetting" && thing.type != "class") err("not a function, import, definition, compilerSetting or class at top level")
+		if (thing.type != "function" && thing.type != "macro" && thing.type != "import" && thing.type != "definition" && thing.type != "compilerSetting" && thing.type != "class") err("not a function, macro, import, definition, compilerSetting or class at top level")
 	}
 
 	assemblyLoop(context.mainAssembly, build_in, "top", "normal", ["newScope"])
@@ -1111,33 +1162,30 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				if (level != 0) err("functions can only be defined at top level")
 				if (variables[0][thing.name]) err(`variable ${thing.name} already exists`)
 
-				if (flags.includes("macro")) {
-					if (thing.name == "main") err("the main function can not be a macro (remove the `@macro` compiler setting)")
-
-					variables[0][thing.name] = {
-						type: "Macro",
-						codeBlock: thing.codeBlock,
-						public: thing.public,
-						ID: path + "_" + thing.name,
-						args: thing.args,
-						return: thing.return,
-					}
-				} else {
-					variables[0][thing.name] = {
-						type: "Function",
-						public: thing.public,
-						ID: path + "_" + thing.name,
-						args: thing.args,
-						return: thing.return,
-					}
+				variables[0][thing.name] = {
+					type: "Function",
+					public: thing.public,
+					ID: path + "_" + thing.name,
+					args: thing.args,
+					return: thing.return,
 				}
+
 				files[path][thing.name] = variables[0][thing.name]
 			}
 
-			// set up the macro early
-			else if (thing.type == "compilerSetting") {
-				if (thing.name == "macro") {
-					assemblyLoop(assembly, thing.build, undefined, buildType, ["macro"])
+			else if (thing.type == "macro") {
+				if (level != 0) err("macros can only be defined at top level")
+				if (variables[0][thing.name]) err(`variable ${thing.name} already exists`)
+
+				if (thing.name == "main") err("a macro cannot be named 'main' (choose a different name for your macro or make it a function)")
+
+				variables[0][thing.name] = {
+					type: "Macro",
+					codeBlock: thing.codeBlock,
+					public: thing.public,
+					ID: path + "_" + thing.name,
+					args: thing.args,
+					return: thing.return,
 				}
 			}
 			
@@ -1259,39 +1307,35 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			if (thing.type == "function") {
 				const variable = getVariable(thing.name)
 
-				if (variable.type != "Macro") {
-				
-					variables[level+1] = {}
+				variables[level+1] = {}
 
-					for (let i = 0; i < thing.args.length; i++) {
-						const arg = thing.args[i];
-						variables[level+1][arg.name] = {
-							type: arg.type,
-							index: -1-i,
-							global: false,
-							initialized: true,
-						}
+				for (let i = 0; i < thing.args.length; i++) {
+					const arg = thing.args[i];
+					variables[level+1][arg.name] = {
+						type: arg.type,
+						index: -1-i,
+						global: false,
+						initialized: true,
 					}
-					context.functionId = variable.ID
-					context.expectedReturnType = variable.return
+				}
+				context.functionId = variable.ID
+				context.expectedReturnType = variable.return
 
-					if (thing.name == "main") {
-						// if name == "main" use "context.startAssembly" instead of "assembly"
-						context.startAssembly.push(`@${variable.ID}`, "\n")
+				if (thing.name == "main") {
+					// if name == "main" use "context.startAssembly" instead of "assembly"
+					context.startAssembly.push(`@${variable.ID}`, "\n")
 
-						assemblyLoop(context.startAssembly, thing.codeBlock, "function", buildType, ["newScope"])
-					} else {
-						pushToAssembly([`@${variable.ID}`])
+					assemblyLoop(context.startAssembly, thing.codeBlock, "function", buildType, ["newScope"])
+				} else {
+					pushToAssembly([`@${variable.ID}`])
 
-						assemblyLoop(assembly, thing.codeBlock, "function", buildType, ["newScope"])
+					assemblyLoop(assembly, thing.codeBlock, "function", buildType, ["newScope"])
 
-						// pop all arguments and the return address off the stack
-						pushToAssembly(["!load", toHex((variables[0][thing.name].args.length*4)+4, 8), "0x01"])
-						pushToAssembly(["!add", "0x09", "0x01"])
-						pushToAssembly(["!dynamicTransfer|10", "0x09", "0x00"])
-						pushToAssembly(["!jump"])
-					}
-
+					// pop all arguments and the return address off the stack
+					pushToAssembly(["!load", toHex((variables[0][thing.name].args.length*4)+4, 8), "0x01"])
+					pushToAssembly(["!add", "0x09", "0x01"])
+					pushToAssembly(["!dynamicTransfer|10", "0x09", "0x00"])
+					pushToAssembly(["!jump"])
 				}
 
 				types.push(undefined)
@@ -1732,8 +1776,6 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 					assemblyLoop(assembly, thing.build, undefined, "debug", [])
 				} else if (thing.name == "optimize") {
 					assemblyLoop(assembly, thing.build, undefined, "optimize", [])
-				} else if (thing.name == "macro") {
-					// do nothing
 				} else if (thing.name == "if_macro_type") {
 					if (thing.args.length != 2) err("if_macro_type expects two arguments")
 					const variable = getVariable(thing.args[0])

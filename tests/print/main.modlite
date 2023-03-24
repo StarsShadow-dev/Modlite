@@ -10,8 +10,7 @@ function main(): Void {
 	print5x("print5x")
 }
 
-@macro
-function print5x(msg: String): Void {
+macro print5x(msg: String): Void {
 
 	@duplicate<5>
 		print(msg)
@@ -19,8 +18,7 @@ function print5x(msg: String): Void {
 
 }
 
-@macro
-function print(value: Any): Void {
+macro print(value: Any): Void {
 
 	@if_macro_type<value Bool>
 		if (value! Bool) {
