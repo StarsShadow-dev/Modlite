@@ -2,6 +2,8 @@
 
 A work in progress programming language.
 
+A work in progress VS code extension is [here](https://github.com/StarsShadow-dev/modlite-vscode-extension).
+
 ## This programming language is currently in an experimental phase
 This means that:
 - some features may not be working
