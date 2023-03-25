@@ -10,7 +10,7 @@ function main(): Void {
 	print5x("print5x")
 }
 
-macro print5x(msg: String): Void {
+function print5x(msg: String): Void {
 
 	@duplicate<5>
 		print(msg)

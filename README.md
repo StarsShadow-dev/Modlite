@@ -2,6 +2,8 @@
 
 A work in progress programming language.
 
-Currently not working (most things are broken because I am redesigning the virtual machine).
-
-This programming language was created as a way to make mods for my game.
+## This programming language is currently in an experimental phase
+This means that:
+- some features may not be working
+- the syntax may change drastically with later visions
+- and due to frequent syntax changes there is no documentation
