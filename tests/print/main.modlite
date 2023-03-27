@@ -32,4 +32,8 @@ macro print(value: Any): Void {
 		printLine(value! String)
 	@end
 
+	@if_macro_type<value Any>
+		@compiler_error "the print macro can not take type Any" @end
+	@end
+
 }

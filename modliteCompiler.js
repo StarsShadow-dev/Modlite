@@ -336,11 +336,13 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 				return build
 			}
 
-			if (token.value[1].length == 0) {
-				parse = Modlite_compiler.parse(context, tokens, false, "any")	
-			} else {
-				parse = Modlite_compiler.parse(context, tokens, false, "@end")
-			}
+			parse = Modlite_compiler.parse(context, tokens, false, "@end")
+
+			// if (token.value[1].length == 0) {
+			// 	parse = Modlite_compiler.parse(context, tokens, false, "any")	
+			// } else {
+			// 	parse = Modlite_compiler.parse(context, tokens, false, "@end")
+			// }
 
 			push_to_build({
 				type: "compilerSetting",
@@ -1787,6 +1789,8 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 					if (variable.return == thing.args[1]) {
 						assemblyLoop(assembly, thing.build, undefined, buildType, flags)
 					}
+				} else if (thing.name == "compiler_error") {
+					err(thing.build[0].value)
 				} else {
 					err(`unknown compiler setting ${thing.name}`)
 				}
@@ -1870,7 +1874,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 	function err(msg) {
 		Modlite_compiler.handle_error(msg, lineNumber, level)
-		throw "[getAssembly error]";
+		// throw "[getAssembly error]";
 	}
 }
 
