@@ -202,6 +202,7 @@ class ModliteRunTime {
 
 				if ((byte & 0b00000001) != 0) {
 					// to memory
+					throw "test"
 					const location = this.registers.getUint32(4)
 
 					this.registers.setUint32(location, value)
