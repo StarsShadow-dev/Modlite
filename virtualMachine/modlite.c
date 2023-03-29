@@ -205,14 +205,28 @@ void modlite_run(modlite_VMdata *data, void (*exposedFunctions[])(void)) {
 		
 		// equivalent
 		else if (instruction == 11) {
-			printf("no equivalent");
-			return;
+			data->instructionPointer += 1;
+			uint8_t register1 = data->memory[data->instructionPointer]*4;
+			uint32_t register1value = data->registers[register1];
+
+			data->instructionPointer += 1;
+			uint8_t register2 = data->memory[data->instructionPointer]*4;
+			uint32_t register2value = data->registers[register2];
+			
+			data->registers[register1] = register1value == register2value;
 		}
 		
 		// greaterThan
 		else if (instruction == 12) {
-			printf("no greaterThan");
-			return;
+			data->instructionPointer += 1;
+			uint8_t register1 = data->memory[data->instructionPointer]*4;
+			uint32_t register1value = data->registers[register1];
+
+			data->instructionPointer += 1;
+			uint8_t register2 = data->memory[data->instructionPointer]*4;
+			uint32_t register2value = data->registers[register2];
+			
+			data->registers[register1] = register1value > register2value;
 		}
 		
 		else {
@@ -223,3 +237,98 @@ void modlite_run(modlite_VMdata *data, void (*exposedFunctions[])(void)) {
 		data->instructionPointer += 1;
 	}
 }
+
+// example usage
+/*
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/errno.h>
+#include "modlite.h"
+
+// returns 0 on success
+// and errno on failure
+int readFileToBuffer(const char *path, char *buffer, const size_t bufferSize) {
+	FILE* file = fopen(path, "r");
+	
+	if (file == 0) {
+		return errno;
+	}
+
+	// get the size of the file
+	fseek(file, 0L, SEEK_END);
+	size_t fileSize = ftell(file);
+	rewind(file);
+	
+	if (fileSize > bufferSize) {
+		return EFBIG;
+	}
+
+	fread(buffer, sizeof(char), fileSize, file);
+
+	fclose(file);
+	
+	return 0;
+}
+
+void print(void) {
+	printf("print test\n");
+}
+
+int main(int argc, char *argv[]) {
+	
+	printf("The argument supplied is %s\n", argv[1]);
+	
+	if (argc != 4) {
+		printf("argc != 4\n");
+		return 1;
+	}
+	
+	modlite_VMdata VMdata = {0};
+	
+	VMdata.memorySize = 2048;
+	
+	VMdata.memory = malloc(VMdata.memorySize);
+	if (VMdata.memory == NULL) {
+		printf("Insufficient memory available for VM memory (is your computer too small or is your memorySize too big?)\n");
+		// free memory
+		free(VMdata.memory);
+		return 1;
+	}
+	
+	VMdata.registers = malloc(9*4);
+	if (VMdata.registers == NULL) {
+		printf("Insufficient memory available for VM registers\n");
+		
+		// free memory
+		free(VMdata.memory);
+		free(VMdata.registers);
+		return 1;
+	}
+	
+	int returnValue = readFileToBuffer(argv[1], VMdata.memory, VMdata.memorySize);
+
+	if (returnValue != 0) {
+		if (returnValue == errno) {
+			printf("file %s not found\n", argv[1]);
+		} else if (returnValue == EFBIG) {
+			printf("file at %s is to big\n", argv[1]);
+		}
+		// free memory
+		free(VMdata.memory);
+		free(VMdata.registers);
+		return 1;
+	}
+	
+	void (*exposedFunctions[])(void) = {&print};
+	
+	modlite_init(&VMdata);
+	
+	modlite_run(&VMdata, exposedFunctions);
+	
+	// free memory
+	free(VMdata.memory);
+	free(VMdata.registers);
+	
+	return 0;
+}
+*/
