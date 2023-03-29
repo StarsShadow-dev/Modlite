@@ -82,11 +82,13 @@ class ModliteRunTime {
 		let string = ""
 		while(true) {
 			// console.log(i)
-			const byte = this.data.getUint8(i++)
+			const byte = this.data.getUint8(i)
 			if (byte == 0) {
 				return string
 			}
 			string += String.fromCharCode(byte)
+
+			i += 1
 		}
 	}
 
@@ -318,9 +320,9 @@ class ModliteRunTime {
 	}
 }
 
-function getNumberFrom4ByteCharacters(a, b, c, d) {
-	return a << 24 + b << 16 + c << 8 + d
-}
+// function getNumberFrom4ByteCharacters(a, b, c, d) {
+// 	return a << 24 + b << 16 + c << 8 + d
+// }
 
 function byteToHex(byte) {
 	let hex = byte.toString(16)

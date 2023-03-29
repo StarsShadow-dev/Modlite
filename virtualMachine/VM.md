@@ -1,0 +1,1 @@
+- R9 is the stack pointer it should point to the next usable position on the stack.
