@@ -12,6 +12,8 @@ typedef struct {
 
 void modlite_init(modlite_VMdata *data);
 
+uint32_t modlite_pop(modlite_VMdata *data);
+
 void modlite_run(modlite_VMdata *data, void (*exposedFunctions[])(void));
 
 #endif /* modlite_h */

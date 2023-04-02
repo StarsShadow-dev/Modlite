@@ -8,27 +8,28 @@
 #include "modlite.h"
 
 void modlite_init(modlite_VMdata *data) {
-	printf("modlite_init\n");
-	
 	data->registers[9*4] = data->memorySize;
 }
 
+uint32_t modlite_pop(modlite_VMdata *data) {
+	data->registers[9*4] += 4;
+	return data->memory[data->registers[9*4]];
+}
+
 void modlite_run(modlite_VMdata *data, void (*exposedFunctions[])(void)) {
-	printf("modlite_run\n");
-	
 	while (data->instructionPointer < data->memorySize) {
 		uint8_t byte = data->memory[data->instructionPointer];
 		
 		uint8_t instruction = byte >> 2;
 		
-		printf("instruction = %u\n", instruction);
+//		printf("instruction = %u\n", instruction);
 		
 		// jump
 		if (instruction == 0) {
 			uint32_t location = data->registers[0];
 			
 			// a jump to 0xFFFFFFFF ends the program
-			if (location == 4294967295) return;
+//			if (location == 4294967295) return;
 			
 			data->instructionPointer = location;
 			continue;
@@ -41,7 +42,7 @@ void modlite_run(modlite_VMdata *data, void (*exposedFunctions[])(void)) {
 			
 			if (condition) {
 				// a jump to 0xFFFFFFFF ends the program
-				if (location == 4294967295) return;
+//				if (location == 4294967295) return;
 				
 				data->instructionPointer = location;
 				continue;
@@ -55,7 +56,7 @@ void modlite_run(modlite_VMdata *data, void (*exposedFunctions[])(void)) {
 			
 			if (!condition) {
 				// a jump to 0xFFFFFFFF ends the program
-				if (location == 4294967295) return;
+//				if (location == 4294967295) return;
 				
 				data->instructionPointer = location;
 				continue;
@@ -89,6 +90,11 @@ void modlite_run(modlite_VMdata *data, void (*exposedFunctions[])(void)) {
 				data->instructionPointer += 1;
 				uint32_t location = data->memory[data->instructionPointer];
 				data->instructionPointer += 3;
+				
+				if (location >= data->memorySize) {
+					printf("staticTransfer value location is >= memorySize");
+					return;
+				}
 //
 				value = data->memory[location];
 			} else {
@@ -104,6 +110,11 @@ void modlite_run(modlite_VMdata *data, void (*exposedFunctions[])(void)) {
 			if ((byte & 0b00000001) != 0) {
 				// to memory
 				uint32_t location = data->memory[1*4];
+				
+				if (location >= data->memorySize) {
+					printf("staticTransfer new location is >= memorySize");
+					return;
+				}
 
 				data->memory[location] = value;
 			} else {
@@ -270,20 +281,28 @@ int readFileToBuffer(const char *path, char *buffer, const size_t bufferSize) {
 	return 0;
 }
 
+modlite_VMdata VMdata = {0};
+
 void print(void) {
-	printf("print test\n");
+	uint32_t index = modlite_pop(&VMdata);
+	
+	while (index < VMdata.memorySize) {
+		uint8_t byte = VMdata.memory[index];
+		if (byte == 0) {
+			return;
+		}
+		
+		putc(byte, stdout);
+		
+		index++;
+	}
 }
 
 int main(int argc, char *argv[]) {
-	
-	printf("The argument supplied is %s\n", argv[1]);
-	
 	if (argc != 4) {
 		printf("argc != 4\n");
 		return 1;
 	}
-	
-	modlite_VMdata VMdata = {0};
 	
 	VMdata.memorySize = 2048;
 	
