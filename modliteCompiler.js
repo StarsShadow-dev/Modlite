@@ -15,6 +15,7 @@ const Modlite_compiler = {
 
 	reservedWords: [
 		"function",
+		"return",
 		"macro",
 		"import",
 		"from",
@@ -1046,13 +1047,11 @@ Modlite_compiler.compileCode = (rootPath) => {
 				types: [],
 				recursionHistory: [],
 
-				// not used right now
-				functionId: undefined,
-
-				expectedReturnType: undefined,
 				startAssembly: [],
 				mainAssembly: [],
 				constants: {},
+
+				error: false,
 			}
 
 			let files = {}
@@ -1122,9 +1121,12 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 	const build_in = Modlite_compiler.parse({ lineNumber: 1, level: -1, i: 0 }, tokens, false, undefined)
 	if (logEverything) console.log("build:\n" + JSON.stringify(build_in, null) + "\n")
 
-	let level = -1
 	let lineNumber = 0
+
+	let level = -1
+	let levelInformation = [{type: "top"}]
 	let variables = [{}]
+
 	let recursionHistory = []
 
 	let outputRegister = "0x00"
@@ -1139,6 +1141,10 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 	}
 
 	assemblyLoop(context.mainAssembly, build_in, "top", "normal", ["newScope"])
+
+	if (context.error) {
+		throw "[getAssembly error]";
+	}
 
 	// newScope
 	function assemblyLoop(assembly, build, recursionName, buildType, flags) {
@@ -1170,6 +1176,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 					ID: path + "_" + thing.name,
 					args: thing.args,
 					return: thing.return,
+					allocatedBiteSize: thing.args.length*4,
 				}
 
 				files[path][thing.name] = variables[0][thing.name]
@@ -1275,24 +1282,26 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 						variables[0][newName] = json[importName]
 					}
 				} else {
-					if (thing.path == "StandardLibrary") {
-						let jsonString = fs.readFileSync(join(dirname(process.argv[1]), thing.path+".json"), "utf8")
+					// if (thing.path == "StandardLibrary") {
+					// 	let jsonString = fs.readFileSync(join(dirname(process.argv[1]), thing.path+".json"), "utf8")
 		
-						const json = JSON.parse(jsonString)
+					// 	const json = JSON.parse(jsonString)
 		
-						for (let i = 0; i < thing.imports.length; i++) {
-							const importName = thing.imports[i][0];
-							const newName = thing.imports[i][1];
+					// 	for (let i = 0; i < thing.imports.length; i++) {
+					// 		const importName = thing.imports[i][0];
+					// 		const newName = thing.imports[i][1];
 							
-							if (!json[importName]) err(`import ${importName} from json file ${thing.path} not found`)
+					// 		if (!json[importName]) err(`import ${importName} from json file ${thing.path} not found`)
 		
-							if (variables[0][newName]) err(`Import with name ${newName} failed. Because a variable named ${newName} already exists.`)
+					// 		if (variables[0][newName]) err(`Import with name ${newName} failed. Because a variable named ${newName} already exists.`)
 		
-							variables[0][newName] = json[importName]
-						}
-					} else {
-						err(`'${thing.path}' does not have a valid file extension`)
-					}
+					// 		variables[0][newName] = json[importName]
+					// 	}
+					// } else {
+					// 	err(`'${thing.path}' does not have a valid file extension`)
+					// }
+
+					err(`'${thing.path}' does not have a valid file extension`)
 
 				}
 			}
@@ -1320,24 +1329,37 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 						initialized: true,
 					}
 				}
-				context.functionId = variable.ID
-				context.expectedReturnType = variable.return
+
+				console.log("thing", thing)
+
+				levelInformation[level] = {
+					type: "function",
+					name: thing.name,
+					returned: false,
+					expectedReturnType: thing.return,
+				}
 
 				if (thing.name == "main") {
 					// if name == "main" use "context.startAssembly" instead of "assembly"
 					context.startAssembly.push(`@${variable.ID}`, "\n")
 
 					assemblyLoop(context.startAssembly, thing.codeBlock, "function", buildType, ["newScope"])
+
+					// context.startAssembly.push(`@end ${variable.ID}`, "\n")
 				} else {
 					pushToAssembly([`@${variable.ID}`])
 
 					assemblyLoop(assembly, thing.codeBlock, "function", buildType, ["newScope"])
 
-					// pop all arguments and the return address off the stack
-					pushToAssembly(["!load", toHex((variables[0][thing.name].args.length*4)+4, 8), "0x01"])
-					pushToAssembly(["!add", "0x09", "0x01"])
-					pushToAssembly(["!dynamicTransfer|10", "0x09", "0x00"])
-					pushToAssembly(["!jump"])
+					// pushToAssembly([`@end ${variable.ID}`])
+
+					if (levelInformation[level].returned == false) {
+						// pop all arguments and the return address off the stack
+						pushToAssembly(["!load", toHex(variables[0][thing.name].allocatedBiteSize+4, 8), "0x01"])
+						pushToAssembly(["!add", "0x09", "0x01"])
+						pushToAssembly(["!dynamicTransfer|10", "0x09", "0x00"])
+						pushToAssembly(["!jump"])
+					}
 				}
 
 				types.push(undefined)
@@ -1350,7 +1372,6 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			}
 
 			else if (thing.type == "class") {
-
 				err("classes are not available right now")
 
 				for (let i = 0; i < thing.value.length; i++) {
@@ -1358,8 +1379,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 					if (inClass.type == "function") {
 						const method = variables[0][thing.name].data[inClass.name]
 
-						context.functionId = method.ID
-						context.expectedReturnType = method.return
+						// context.expectedReturnType = method.return
 
 						assemblyLoop(assembly, inClass.codeBlock, "class", buildType, [])
 						if (method.args.length > 0) {
@@ -1599,7 +1619,14 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 								return: typelist[i].type,
 							}
 						}
-						context.expectedReturnType = variable.return
+
+						console.log("Macro", Macro)
+
+						levelInformation[level] = {
+							type: "macro",
+							returned: false,
+							expectedReturnType: typelist[i].type,
+						}
 
 						assemblyLoop(assembly, variable.codeBlock, "macro", buildType, ["newScope"])
 					}
@@ -1749,17 +1776,28 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			}
 
 			else if (thing.type == "return") {
+				const functionVariable = getVariable(getLevelInformationFunction().name)
+
+				// pop all arguments and the return address off the stack
+				pushToAssembly(["!load", toHex(functionVariable.allocatedBiteSize+4, 8), "0x01"])
+				pushToAssembly(["!add", "0x09", "0x01"])
+				pushToAssembly(["!dynamicTransfer|10", "0x09", "0x00"])
+
+				// the return address is now in register zero
+
 				let typelist
-				if (thing.expression[0].type == "word" && thing.expression[0].value == "void") {
-					typelist = ["void"]
+				if (thing.expression[0].type == "word" && thing.expression[0].value == "Void") {
+					typelist = ["Void"]
 				} else {
 					typelist = assemblyLoop(assembly, thing.expression, "return", buildType, ["expectValues"])
 				}
 
-				if (typelist[0] != context.expectedReturnType) err(`expected return type ${context.expectedReturnType} got ${typelist[0]}`)
+				if (typelist[0].type != levelInformation[level-1].expectedReturnType) err(`expected return type ${levelInformation[level-1].expectedReturnType} got ${typelist[0].type}`)
 
-				if (thing.expression.length != 0 && context.expectedReturnType != "void") {
-				}
+				// return
+				pushToAssembly(["!jump"])
+
+				levelInformation[level-1].returned = true
 
 				types.push(undefined)
 			}
@@ -1797,7 +1835,8 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			}
 		}
 
-		if (flags.includes("newScope")) { 
+		if (flags.includes("newScope")) {
+			if (levelInformation[level]) levelInformation.pop()
 			variables.pop()
 			level--
 		}
@@ -1811,18 +1850,20 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 		}
 
 		function pushToAssembly_push(data) {
-			pushToAssembly(["!load", data, "0x00"])
-			pushToAssembly(["!dynamicTransfer|01", "0x00", "0x09"])
+			pushToAssembly(["!load", data, "0x01"])
+			pushToAssembly(["!dynamicTransfer|01", "0x01", "0x09"])
 
 			pushToAssembly(["!load", "0x00000004", "0x01"])
 			pushToAssembly(["!subtract", "0x09", "0x01"])
 
-		}
-		function pushToAssembly_pop() {
-			pushToAssembly(["!load", "0x00000004", "0x01"])
-			pushToAssembly(["!add", "0x09", "0x01"])
+		}	
+	}
 
-			pushToAssembly(["!dynamicTransfer|10", "0x09", "0x00"])
+	function getLevelInformationFunction() {
+		for (let i = levelInformation.length-1; i >= 0; i--) {
+			if (levelInformation[i].type == "function") {
+				return levelInformation[i]
+			}
 		}
 	}
 
@@ -1874,7 +1915,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 	function err(msg) {
 		Modlite_compiler.handle_error(msg, lineNumber, level)
-		// throw "[getAssembly error]";
+		context.error = true
 	}
 }
 

@@ -1,39 +1,47 @@
-import { printLine } from "StandardLibrary"
+import { printLine } from "./../node.json"
 
 function main(): Void {
-	print("in main")
+	// print("in main")
 
-	print(true)
+	// print(true)
 
-	print(false)
+	// print(false)
 
-	print5x("print5x")
+	// print5x("print5x")
+
+	printLine(getString())
 }
 
-function print5x(msg: String): Void {
-
-	@duplicate<5>
-		print(msg)
-	@end
-
+function getString(): String {
+	return "a string"
+	printLine("error")
 }
 
-macro print(value: Any): Void {
+// function print5x(msg: String): Void {
 
-	@if_macro_type<value Bool>
-		if (value! Bool) {
-			printLine("[Bool] true")
-		} else {
-			printLine("[Bool] false")
-		}
-	@end
+// 	@duplicate<5>
+// 		print(msg)
+// 	@end
 
-	@if_macro_type<value String>
-		printLine(value! String)
-	@end
+// }
 
-	@if_macro_type<value Any>
-		@compiler_error "the print macro can not take type Any" @end
-	@end
+// macro print(value: Any): Void {
 
-}
+// 	@if_macro_type<value Bool>
+// 		if (value! Bool) {
+// 			printLine("[Bool] true")
+// 		} else {
+// 			printLine("[Bool] false")
+// 		}
+// 	@end
+
+// 	@if_macro_type<value String>
+// 		printLine(value! String)
+// 	@end
+
+// 	@if_macro_type<value Any>
+// 		@compiler_error "the print macro can not take type Any" @end
+// 	@end
+
+// }
+
