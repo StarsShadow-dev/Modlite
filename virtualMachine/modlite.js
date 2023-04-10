@@ -29,17 +29,17 @@ const binaryCodes = [
 
 class ModliteRunTime {
 	exposedFunctions = [
-		() => {
-			const location = this.pop()
+		// () => {
+		// 	const location = this.pop()
 
-			// console.log("location", location)
+		// 	// console.log("location", location)
 
-			const value = this.readString(location)
+		// 	const value = this.readString(location)
 
-			// console.log("value", value)
+		// 	// console.log("value", value)
 
-			console.log("[print]", value)
-		},
+		// 	console.log("[print]", value)
+		// },
 	]
 
 	instructionPointer

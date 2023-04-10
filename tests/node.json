@@ -1,11 +1,11 @@
 {
-	"printLine": {
+	"putchar": {
 		"type": "ExposedFunction",
 		"ID": "0x00000000",
 		"args": [
 			{
-				"name": "message",
-				"type": "String"
+				"name": "char",
+				"type": "Uint32"
 			}
 		],
 		"return": "Void"

@@ -1330,8 +1330,6 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 					}
 				}
 
-				console.log("thing", thing)
-
 				levelInformation[level] = {
 					type: "function",
 					name: thing.name,
@@ -1460,7 +1458,11 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			else if (thing.type == "number") {
 				if (!flags.includes("expectValues")) err(`unexpected ${thing.type}`)
 
-				err("numbers are not available right now")
+				if (flags.includes("valueToRegister")) {
+					pushToAssembly(["!load", toHex(thing.value, 8), outputRegister])
+				} else {
+					pushToAssembly_push(toHex(thing.value, 8))
+				}
 
 				types.push({type: "Number"})
 			}
@@ -1620,12 +1622,10 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 							}
 						}
 
-						console.log("Macro", Macro)
-
 						levelInformation[level] = {
 							type: "macro",
 							returned: false,
-							expectedReturnType: typelist[i].type,
+							expectedReturnType: variable.return,
 						}
 
 						assemblyLoop(assembly, variable.codeBlock, "macro", buildType, ["newScope"])
@@ -1907,6 +1907,14 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 			if (variable && variable.type == "class") {
 				return
+			}
+
+			if (actual.type == "Number") {
+				if (
+					expected.type == "Uint32"
+				) {
+					return
+				}
 			}
 
 			if (expected.type != actual.type) err(`expected type ${expected.type} but got type ${actual.type}`)

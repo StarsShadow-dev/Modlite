@@ -35,7 +35,6 @@ The main function will be run when your program starts.
 function main(): Void {}
 ```
 
-
 ## Hello World Example
 
 Start by importing printLine from the StandardLibrary.
@@ -55,3 +54,8 @@ In the main function add a printLine function call.
 ```modlite
 printLine("Hello, World")
 ```
+
+# types
+
+* String
+	* a pointer to a list of Uint8s ending at a 0x00

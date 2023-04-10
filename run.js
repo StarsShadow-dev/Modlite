@@ -30,10 +30,22 @@ for (let i = 0; i < binary.length; i++) {
 	runTime.data.setUint8(i, character.charCodeAt(0))
 }
 
-console.time("runTime")
+runTime.exposedFunctions.push(() => {
+	const stackPointer = runTime.registers.getUint32(9*4)+4
+	runTime.registers.setUint32(9*4, stackPointer)
+
+	// console.log("pop", stackPointer, runTime.data.getUint32(stackPointer))
+
+	process.stdout.write(String.fromCharCode(runTime.data.getUint32(stackPointer)))
+})
+
+// console.time("runTime")
 
 runTime.run()
 
-console.timeEnd("runTime")
+// console.timeEnd("runTime")
+
+// to prevent a random inverted % char from appearing
+console.log("")
 
 // runTime.logData()

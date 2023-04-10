@@ -1,29 +1,12 @@
-import { printLine } from "./../node.json"
+import { putchar } from "./../node.json"
+
+// typedef String: *[Uint8]
 
 function main(): Void {
-	// print("in main")
-
-	// print(true)
-
-	// print(false)
-
-	// print5x("print5x")
-
-	printLine(getString())
+	putchar(97)
 }
 
-function getString(): String {
-	return "a string"
-	printLine("error")
-}
-
-// function print5x(msg: String): Void {
-
-// 	@duplicate<5>
-// 		print(msg)
-// 	@end
-
-// }
+// import { printLine } from "./../node.json"
 
 // macro print(value: Any): Void {
 
@@ -44,4 +27,3 @@ function getString(): String {
 // 	@end
 
 // }
-
