@@ -5,7 +5,7 @@
 		"args": [
 			{
 				"name": "char",
-				"type": "Uint32"
+				"type": "Uint8"
 			}
 		],
 		"return": "Void"

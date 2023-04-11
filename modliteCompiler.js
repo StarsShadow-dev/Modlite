@@ -1125,7 +1125,12 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 	let level = -1
 	let levelInformation = [{type: "top"}]
-	let variables = [{}]
+	let variables = [{
+		Uint8: {
+			type: "type",
+			biteSize: 1,
+		}
+	}]
 
 	let recursionHistory = []
 
@@ -1170,13 +1175,29 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				if (level != 0) err("functions can only be defined at top level")
 				if (variables[0][thing.name]) err(`variable ${thing.name} already exists`)
 
+				console.log("thing.args", thing.args)
+
+				let allocatedBiteSize = 0
+
+				for (let i = 0; i < thing.args.length; i++) {
+					const arg = thing.args[i];
+					
+					const typeVar = getVariable(arg.type)
+
+					if (!typeVar) err(`no type named ${arg.type}`)
+
+					if (typeVar.type != "type") err(`${arg.type} is not a type`)
+
+					allocatedBiteSize += typeVar.biteSize
+				}
+
 				variables[0][thing.name] = {
 					type: "Function",
 					public: thing.public,
 					ID: path + "_" + thing.name,
 					args: thing.args,
 					return: thing.return,
-					allocatedBiteSize: thing.args.length*4,
+					allocatedBiteSize: allocatedBiteSize,
 				}
 
 				files[path][thing.name] = variables[0][thing.name]
@@ -1199,54 +1220,54 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			}
 			
 			else if (thing.type == "class") {
-				let data = {}
-				let definitionCount = 0
-				for (let i = 0; i < thing.value.length; i++) {
-					const inClass = thing.value[i];
-					if (inClass.type == "definition") {
-						data[inClass.name] = {
-							type: inClass.variableType,
-							index: definitionCount++,
-							initialized: false,
-						}
-					} else if (inClass.type == "function") {
-						data[inClass.name] = {
-							type: "function",
-							ID: path + " class " + thing.name + " " + inClass.name,
-							args: inClass.args,
-							return: inClass.return,
-						}
-					} else {
-						err(`unexpected ${inClass.type} in class, expected definition or function`)
-					}
-				}
-				variables[0][thing.name] = {
-					type: "class",
-					public: thing.public,
-					data: data,
-				}
-				files[path][thing.name] = variables[0][thing.name]
+				// let data = {}
+				// let definitionCount = 0
+				// for (let i = 0; i < thing.value.length; i++) {
+				// 	const inClass = thing.value[i];
+				// 	if (inClass.type == "definition") {
+				// 		data[inClass.name] = {
+				// 			type: inClass.variableType,
+				// 			index: definitionCount++,
+				// 			initialized: false,
+				// 		}
+				// 	} else if (inClass.type == "function") {
+				// 		data[inClass.name] = {
+				// 			type: "function",
+				// 			ID: path + " class " + thing.name + " " + inClass.name,
+				// 			args: inClass.args,
+				// 			return: inClass.return,
+				// 		}
+				// 	} else {
+				// 		err(`unexpected ${inClass.type} in class, expected definition or function`)
+				// 	}
+				// }
+				// variables[0][thing.name] = {
+				// 	type: "class",
+				// 	public: thing.public,
+				// 	data: data,
+				// }
+				// files[path][thing.name] = variables[0][thing.name]
 			}
 			
 			else if (thing.type == "definition") {
-				if (Modlite_compiler.reservedWords.includes(thing.name)) err(`${thing.name} is a reserved word`)
-				if (level == 0) {
-					variables[level][thing.name] = {
-						type: thing.variableType,
-						index: context.globalCount++,
-						global: true,
-						public: thing.public,
-						initialized: false,
-					}
-					files[path][thing.name] = variables[level][thing.name]
-				} else {
-					variables[level][thing.name] = {
-						type: thing.variableType,
-						index: getRegisterRequirement(),
-						global: false,
-						initialized: false,
-					}
-				}
+				// if (Modlite_compiler.reservedWords.includes(thing.name)) err(`${thing.name} is a reserved word`)
+				// if (level == 0) {
+				// 	variables[level][thing.name] = {
+				// 		type: thing.variableType,
+				// 		index: context.globalCount++,
+				// 		global: true,
+				// 		public: thing.public,
+				// 		initialized: false,
+				// 	}
+				// 	files[path][thing.name] = variables[level][thing.name]
+				// } else {
+				// 	variables[level][thing.name] = {
+				// 		type: thing.variableType,
+				// 		index: getRegisterRequirement(),
+				// 		global: false,
+				// 		initialized: false,
+				// 	}
+				// }
 			}
 			
 			else if (thing.type == "import") {
@@ -1324,7 +1345,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 					const arg = thing.args[i];
 					variables[level+1][arg.name] = {
 						type: arg.type,
-						index: -1-i,
+						index: (-1-i)*4,
 						global: false,
 						initialized: true,
 					}
@@ -1539,7 +1560,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 						} else {
 							if (!variable.initialized) err("variable " + thing.value + " is not initialized")
 
-							pushToAssembly(["!load", toHex(variable.index*4, 8), "0x00"])
+							pushToAssembly(["!load", toHex(variable.index, 8), "0x00"])
 
 							pushToAssembly(["!add", "0x00", "0x09"])
 
@@ -1564,7 +1585,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 							if (!variable.initialized) err("variable " + thing.value + " is not initialized")
 
 							// push a previous value on the stack onto the top of the stack
-							pushToAssembly(["!load", toHex(variable.index*4, 8), "0x00"])
+							pushToAssembly(["!load", toHex(variable.index, 8), "0x00"])
 							pushToAssembly(["!add", "0x00", "0x09"])
 
 							pushToAssembly(["!dynamicTransfer|11", "0x00", "0x09"])
@@ -1911,7 +1932,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 			if (actual.type == "Number") {
 				if (
-					expected.type == "Uint32"
+					expected.type == "Uint8"
 				) {
 					return
 				}

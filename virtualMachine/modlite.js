@@ -335,5 +335,5 @@ function byteToHex(byte) {
 	return "0x" + hex
 }
 
-// uncomment this when using node
+// comment this when using a web browser
 export default ModliteRunTime

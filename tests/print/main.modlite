@@ -3,7 +3,11 @@ import { putchar } from "./../node.json"
 // typedef String: *[Uint8]
 
 function main(): Void {
-	putchar(97)
+	test(97)
+}
+
+function test(char: Uint8): Void {
+	putchar(char)
 }
 
 // import { printLine } from "./../node.json"
