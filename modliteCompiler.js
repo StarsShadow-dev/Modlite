@@ -25,7 +25,6 @@ const Modlite_compiler = {
 		"switch",
 		"while",
 		"as",
-		"class",
 		"var",
 
 		"true",
@@ -298,8 +297,6 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 					parse_macro(token, true)
 				} else if (next.value == "var") {
 					parse_definition(next, true)
-				} else if (next.value == "class") {
-					parse_class(next, true)
 				} else {
 					err("unexpected 'public' keyword")
 				}
@@ -319,8 +316,6 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 				parse_while()
 			} else if (token.value == "return") {
 				parse_return()
-			} else if (token.value == "class") {
-				parse_class(token, false)
 			} else {
 				push_to_build({
 					type: "word",
@@ -813,23 +808,6 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 		})
 	}
 
-	function parse_class(token, isPublic) {
-		let name = next_token()
-
-		if (!name || name.type != "word") err("expected name of class")
-
-		next_token()
-		const value = Modlite_compiler.parse(context, tokens, false, "}")
-
-		push_to_build({
-			type: "class",
-			public: isPublic,
-			name: name.value,
-			value: value,
-			lineNumber: token.lineNumber,
-		})
-	}
-
 	function err(msg) {
 		Modlite_compiler.handle_error(msg, tokens[context.i-1].lineNumber, context.level)
 		throw "[parser error]";
@@ -1142,7 +1120,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 		const thing = build_in[index];
 		if (thing.lineNumber) lineNumber = thing.lineNumber
 
-		if (thing.type != "function" && thing.type != "macro" && thing.type != "import" && thing.type != "definition" && thing.type != "compilerSetting" && thing.type != "class") err("not a function, macro, import, definition, compilerSetting or class at top level")
+		if (thing.type != "function" && thing.type != "macro" && thing.type != "import" && thing.type != "definition" && thing.type != "compilerSetting") err("not a function, macro, import, definition or compilerSetting at top level")
 	}
 
 	assemblyLoop(context.mainAssembly, build_in, "top", "normal", ["newScope"])
@@ -1217,36 +1195,6 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 					args: thing.args,
 					return: thing.return,
 				}
-			}
-			
-			else if (thing.type == "class") {
-				// let data = {}
-				// let definitionCount = 0
-				// for (let i = 0; i < thing.value.length; i++) {
-				// 	const inClass = thing.value[i];
-				// 	if (inClass.type == "definition") {
-				// 		data[inClass.name] = {
-				// 			type: inClass.variableType,
-				// 			index: definitionCount++,
-				// 			initialized: false,
-				// 		}
-				// 	} else if (inClass.type == "function") {
-				// 		data[inClass.name] = {
-				// 			type: "function",
-				// 			ID: path + " class " + thing.name + " " + inClass.name,
-				// 			args: inClass.args,
-				// 			return: inClass.return,
-				// 		}
-				// 	} else {
-				// 		err(`unexpected ${inClass.type} in class, expected definition or function`)
-				// 	}
-				// }
-				// variables[0][thing.name] = {
-				// 	type: "class",
-				// 	public: thing.public,
-				// 	data: data,
-				// }
-				// files[path][thing.name] = variables[0][thing.name]
 			}
 			
 			else if (thing.type == "definition") {
@@ -1390,51 +1338,31 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				types.push({type: "Table"})
 			}
 
-			else if (thing.type == "class") {
-				err("classes are not available right now")
-
-				for (let i = 0; i < thing.value.length; i++) {
-					const inClass = thing.value[i];
-					if (inClass.type == "function") {
-						const method = variables[0][thing.name].data[inClass.name]
-
-						// context.expectedReturnType = method.return
-
-						assemblyLoop(assembly, inClass.codeBlock, "class", buildType, [])
-						if (method.args.length > 0) {
-
-						}
-					}
-				}
-
-				types.push({type: thing.name})
-			}
-
 			else if (thing.type == "memberAccess") {
 				if (!flags.includes("expectValues")) err(`unexpected ${thing.type}`)
 
 				err("memberAccess is not available right now")
 
-				const typelist = assemblyLoop(assembly, thing.left, "memberAccess", buildType, ["expectValues"])
+				// const typelist = assemblyLoop(assembly, thing.left, "memberAccess", buildType, ["expectValues"])
 
-				if (thing.left[0].type == "memberAccess") {
-					assemblyLoop(assembly, thing.right, "memberAccess", buildType, ["expectValues"])
-				} else {
-					const variable = getVariable(typelist[0].type)
+				// if (thing.left[0].type == "memberAccess") {
+				// 	assemblyLoop(assembly, thing.right, "memberAccess", buildType, ["expectValues"])
+				// } else {
+				// 	const variable = getVariable(typelist[0].type)
 
-					if (variable && variable.type == "class") {
-						if (!variable.data[thing.right[0]]) err(`class ${typelist[0].type} does not have a member named ${thing.right}`)
+				// 	if (variable && variable.type == "class") {
+				// 		if (!variable.data[thing.right[0]]) err(`class ${typelist[0].type} does not have a member named ${thing.right}`)
 
-					} else {
-						assemblyLoop(assembly, thing.right, "memberAccess", buildType, ["expectValues"])
-					}
-				}
+				// 	} else {
+				// 		assemblyLoop(assembly, thing.right, "memberAccess", buildType, ["expectValues"])
+				// 	}
+				// }
 
-				if (recursionHistory[recursionHistory.length-1] != "assignment_left") {
+				// if (recursionHistory[recursionHistory.length-1] != "assignment_left") {
 
-				}
+				// }
 
-				types.push(typelist[0])
+				// types.push(typelist[0])
 			}
 
 			else if (thing.type == "typeCast") {
@@ -1677,9 +1605,11 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 					types.push({type: variable.return})
 				} else if (variable.type == "class") {
 
+					err("error, class???")
+
 					types.push({type: name})
 				} else {
-					err(`variable ${name} is not a Function or class`)
+					err(`variable ${name} is not a function`)
 				}
 			}
 
@@ -1926,9 +1856,9 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 		} else {
 			const variable = getVariable(expected.type)
 
-			if (variable && variable.type == "class") {
-				return
-			}
+			// if (variable && variable.type == "class") {
+			// 	return
+			// }
 
 			if (actual.type == "Number") {
 				if (
