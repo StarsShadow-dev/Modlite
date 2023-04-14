@@ -1,13 +1,23 @@
-import { putchar } from "./../node.json"
+import { putchar print } from "./../node.json"
 
 // typedef String: *[Uint8]
 
 function main(): Void {
-	test(97)
+	test1(97) // a
+	test1(98) // b
+	test1(99) // c
+
+	test1(10) // \n
+
+	test2("Hello, World\n")
 }
 
-function test(char: Uint8): Void {
+function test1(char: Uint32): Void {
 	putchar(char)
+}
+
+function test2(string: *[Uint32]): Void {
+	print(string)
 }
 
 // import { printLine } from "./../node.json"

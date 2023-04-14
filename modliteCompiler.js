@@ -384,30 +384,6 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 			} else if (token.value == "}") {
 				if (end != token.value) err(`expected ${end} got ${token.value}`)
 				return build
-			} else if (token.value == "[") {
-				const prior = build.pop()
-
-				if (prior) {
-					if (prior.type != "word") err("memberAccess expected word before `[`")
-
-					const memberAccess = Modlite_compiler.parse(context, tokens, false)
-
-					push_to_build({
-						type: "memberAccess",
-						left: [prior],
-						right: memberAccess,
-					})
-				} else {
-					const value = Modlite_compiler.parse(context, tokens, false, "]")
-
-					push_to_build({
-						type: "table",
-						value: value,
-					})
-				}
-			} else if (token.value == "]") {
-				if (end != token.value) err(`expected ${end} got ${token.value}`)
-				return build
 			}
 		}
 
@@ -582,26 +558,27 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 		next_token()
 		// read until the ")"
 		const argument_tokens = read_until((token) => {
-			return token.type == "separator" && token.value == ")"
-		})
+			if (token.type == "separator" && token.value == ":") {
+				const argName = get_token(-2)
+				let arg = parse_type()
 
-		for (let index = 0; index < argument_tokens.length; index++) {
-			const argument_token = argument_tokens[index];
-			if (argument_token.type == "separator" && argument_token.value == ":") {
 				args.push({
-					name: argument_tokens[index-1].value,
-					type: argument_tokens[index+1].value,
+					name: argName.value,
+					type: arg
 				})
+			} else if (token.type == "separator" && token.value == ")") {
+				return true
 			}
-		}
+
+			return false
+		})
 
 		// eat the ":"
 		const colon = next_token()
 
-		if (colon.value != ":") err("function expected colon and then return type")
+		if (colon.value != ":") err("function expected colon and then return type (if your function does not return anything specify `Void`)")
 
-		const Return = next_token()
-		if (Return.type != "word") err("functions must have a specified return type (if your function does not return anything specify `Void`)")
+		const returnType = parse_type()
 
 		// eat the "{"
 		next_token()
@@ -613,7 +590,7 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 			public: isPublic,
 			name: name.value,
 			args: args,
-			return: Return.value,
+			return: returnType,
 			codeBlock: codeBlock,
 			lineNumber: token.lineNumber,
 		})
@@ -623,6 +600,8 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 		const name = next_token()
 
 		let args = []
+
+		err("no macro")
 
 		// eat the "("
 		next_token()
@@ -636,7 +615,7 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 			if (argument_token.type == "separator" && argument_token.value == ":") {
 				args.push({
 					name: argument_tokens[index-1].value,
-					type: argument_tokens[index+1].value,
+					type: parse_type(argument_tokens[index+1].value),
 				})
 			}
 		}
@@ -644,10 +623,9 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 		// eat the ":"
 		const colon = next_token()
 
-		if (colon.value != ":") err("macro expected colon and then return type")
+		if (colon.value != ":") err("macro expected colon and then return type (if your macro does not return anything specify `Void`)")
 
-		const Return = next_token()
-		if (Return.type != "word") err("macros must have a specified return type (if your macro does not return anything specify `Void`)")
+		const returnType = parse_type()
 
 		// eat the "{"
 		next_token()
@@ -659,7 +637,7 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 			public: isPublic,
 			name: name.value,
 			args: args,
-			return: Return.value,
+			return: returnType.value,
 			codeBlock: codeBlock,
 			lineNumber: token.lineNumber,
 		})
@@ -693,16 +671,22 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 			if (variableType.type == "separator") {
 				if (variableType.value == "[") {
 					let newType = {
-						type: "Table",
+						type: "array",
 						value: parse_type(),
 					}
 					next_token()
 					return newType
 				} else if (variableType.value == "]") {
-					err("tables must have an internal type")
+					err("arrays must have an internal type")
 				} else {
 					err(variableType.value + " is not a valid separator for parse_type")
 				}
+			} else if (variableType.type == "operator" && variableType.value == "*") {
+				let newType = {
+					type: "pointer",
+					value: parse_type(),
+				}
+				return newType
 			} else if (variableType.type == "word") {
 				return {
 					type: variableType.value,
@@ -719,7 +703,7 @@ Modlite_compiler.parse = (context, tokens, inExpression, end) => {
 
 		const from = next_token()
 
-		if (from.type != "word" || from.value != "from") err("an import statement requires a location to get imports from, example: `import { print error } from \"StandardLibrary\"`")
+		if (from.type != "word" || from.value != "from") err("an import statement requires a location to get imports from, example: `import { print error } from \"file.modlite\"`")
 
 		const string = next_token()
 		if (string.type != "string") err("expected string")
@@ -1103,12 +1087,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 	let level = -1
 	let levelInformation = [{type: "top"}]
-	let variables = [{
-		Uint8: {
-			type: "type",
-			biteSize: 1,
-		}
-	}]
+	let variables = []
 
 	let recursionHistory = []
 
@@ -1153,20 +1132,12 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				if (level != 0) err("functions can only be defined at top level")
 				if (variables[0][thing.name]) err(`variable ${thing.name} already exists`)
 
-				console.log("thing.args", thing.args)
-
 				let allocatedBiteSize = 0
 
 				for (let i = 0; i < thing.args.length; i++) {
 					const arg = thing.args[i];
 					
-					const typeVar = getVariable(arg.type)
-
-					if (!typeVar) err(`no type named ${arg.type}`)
-
-					if (typeVar.type != "type") err(`${arg.type} is not a type`)
-
-					allocatedBiteSize += typeVar.biteSize
+					allocatedBiteSize += getBiteSize(arg.type)
 				}
 
 				variables[0][thing.name] = {
@@ -1291,6 +1262,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 				for (let i = 0; i < thing.args.length; i++) {
 					const arg = thing.args[i];
+
 					variables[level+1][arg.name] = {
 						type: arg.type,
 						index: (-1-i)*4,
@@ -1332,12 +1304,6 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 				types.push(undefined)
 			}
 
-			else if (thing.type == "table") {
-				err("tables are not available right now")
-
-				types.push({type: "Table"})
-			}
-
 			else if (thing.type == "memberAccess") {
 				if (!flags.includes("expectValues")) err(`unexpected ${thing.type}`)
 
@@ -1367,6 +1333,8 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 			else if (thing.type == "typeCast") {
 				if (!flags.includes("expectValues")) err(`unexpected ${thing.type}`)
+
+				err("typeCast is not available right now")
 
 				const type = assemblyLoop(assembly, thing.left, "typeCast", buildType, flags)[0]
 
@@ -1401,7 +1369,15 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 					pushToAssembly_push("&"+constantID)
 				}
 
-				types.push({type: "String"})
+				types.push({
+					"type": "pointer",
+					"value": {
+						"type": "array",
+						"value": {
+							"type": "Uint8"
+						}
+					}
+				})
 			}
 
 			else if (thing.type == "number") {
@@ -1477,7 +1453,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 						pushToAssembly(["!load", "&"+variable.ID, outputRegister])
 
-						types.push({type: variable.type})
+						types.push(variable.type)
 					} else if (variable.type == "Macro") {
 						assemblyLoop(assembly, variable.codeBlock, "macro", buildType, flags)
 
@@ -1494,14 +1470,14 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 
 							pushToAssembly(["!dynamicTransfer|10", "0x00", outputRegister])
 						}
-	
-						types.push({type: variable.type})
+
+						types.push(variable.type)
 					}
 				} else {
 					if (variable.type == "Function") {
 						pushToAssembly_push("&"+variable.ID)
 
-						types.push({type: variable.type})
+						types.push(variable.type)
 					} else if (variable.type == "Macro") {
 						assemblyLoop(assembly, variable.codeBlock, "macro", buildType, flags)
 
@@ -1522,7 +1498,7 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 							pushToAssembly(["!subtract", "0x09", "0x01"])
 						}
 	
-						types.push({type: variable.type})
+						types.push(variable.type)
 					}
 				}
 			}
@@ -1588,9 +1564,9 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 						const actualType = typelist[i];
 			
 						// if this argument can take anything just continue
-						if (expectedArgument.type == "Any") continue
+						if (variable.type == "Macro" && expectedArgument.type == "Any") continue
 
-						checkType(expectedArgument, actualType)
+						checkType(expectedArgument.type, actualType)
 					}
 
 					if (variable.type == "Function" && variable.return != "Void" && flags.includes("expectValues")) {
@@ -1826,24 +1802,13 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 		}
 	}
 
-	function getRegisterRequirement() {
-		let count = 0
-		for (const key in variables[level]) {
-			if (variables[level][key].index >= 0) {
-				count++
-			}
-		}
-
-		return count
-	}
-
 	function checkType(expected, actual, memberAccess) {
 		// console.log("-------- checkType: --------")
 		// console.log("expected", expected)
 		// console.log("actual", actual)
 		// console.log("memberAccess", JSON.stringify(memberAccess, null, 2))
 
-		if (expected.type == "any") return
+		// if (expected.type == "any") return
 
 		if (memberAccess && expected.type == "Table") {
 
@@ -1854,15 +1819,11 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 			// console.log("in")
 			checkType(expected.value, actual, memberAccess[0].left)
 		} else {
-			const variable = getVariable(expected.type)
-
-			// if (variable && variable.type == "class") {
-			// 	return
-			// }
+			// const variable = getVariable(expected.type)
 
 			if (actual.type == "Number") {
 				if (
-					expected.type == "Uint8"
+					expected.type == "Uint32"
 				) {
 					return
 				}
@@ -1872,8 +1833,27 @@ Modlite_compiler.getAssembly = (path, context, files, main) => {
 		}
 	}
 
+	function getBiteSize(thing) {
+		// console.log("-------- getBiteSize: --------")
+		// console.log("thing", thing)
+
+		// const variable = getVariable(type)
+
+		if (thing.type == "pointer") {
+			// pointers are 4 bites long
+			return 4
+		} else if (thing.type == "Uint32") {
+			return 4
+		} else {
+			throw `the bite size of ${thing.type} is not known`
+		}
+
+		
+	}
+
 	function err(msg) {
 		Modlite_compiler.handle_error(msg, lineNumber, level)
+		throw "[getAssembly error]";
 		context.error = true
 	}
 }

@@ -31,12 +31,28 @@ for (let i = 0; i < binary.length; i++) {
 }
 
 runTime.exposedFunctions.push(() => {
+	const stackPointer = runTime.registers.getUint32(9*4)
+
+	process.stdout.write(String.fromCharCode(runTime.data.getUint32(stackPointer+4)))
+
+	runTime.registers.setUint32(9*4, stackPointer + 4)
+})
+
+runTime.exposedFunctions.push(() => {
 	const stackPointer = runTime.registers.getUint32(9*4)+4
 	runTime.registers.setUint32(9*4, stackPointer)
 
-	// console.log("pop", stackPointer, runTime.data.getUint32(stackPointer))
+	let location = runTime.data.getUint32(stackPointer)
 
-	process.stdout.write(String.fromCharCode(runTime.data.getUint32(stackPointer)))
+	while(true) {
+		const byte = runTime.data.getUint8(location)
+		if (byte == 0) {
+			return
+		}
+		process.stdout.write(String.fromCharCode(byte))
+
+		location += 1
+	}
 })
 
 // console.time("runTime")
@@ -44,8 +60,5 @@ runTime.exposedFunctions.push(() => {
 runTime.run()
 
 // console.timeEnd("runTime")
-
-// to prevent a random inverted % char from appearing
-console.log("")
 
 // runTime.logData()

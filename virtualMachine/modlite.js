@@ -28,19 +28,7 @@ const binaryCodes = [
 ]
 
 class ModliteRunTime {
-	exposedFunctions = [
-		// () => {
-		// 	const location = this.pop()
-
-		// 	// console.log("location", location)
-
-		// 	const value = this.readString(location)
-
-		// 	// console.log("value", value)
-
-		// 	console.log("[print]", value)
-		// },
-	]
+	exposedFunctions = []
 
 	instructionPointer
 
@@ -75,21 +63,6 @@ class ModliteRunTime {
 		// console.log("pop", stackPointer)
 
 		return this.data.getUint32(stackPointer)
-	}
-
-	readString(location) {
-		let i = location
-		let string = ""
-		while(true) {
-			// console.log(i)
-			const byte = this.data.getUint8(i)
-			if (byte == 0) {
-				return string
-			}
-			string += String.fromCharCode(byte)
-
-			i += 1
-		}
 	}
 
 	logData() {

@@ -5,7 +5,26 @@
 		"args": [
 			{
 				"name": "char",
-				"type": "Uint8"
+				"type": { "type": "Uint32" }
+			}
+		],
+		"return": "Void"
+	},
+	"print": {
+		"type": "ExposedFunction",
+		"ID": "0x00000001",
+		"args": [
+			{
+				"name": "string",
+				"type": {
+					"type": "pointer",
+					"value": {
+						"type": "array",
+						"value": {
+							"type": "Uint32"
+						}
+					}
+				}
 			}
 		],
 		"return": "Void"
