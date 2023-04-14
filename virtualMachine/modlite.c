@@ -2,6 +2,8 @@
 	ModliteRunTime version 22
 
 	For c.
+ 
+	**has not been thoroughly tested for memory safety**
 */
 
 #include <stdio.h>
@@ -16,7 +18,7 @@ uint32_t modlite_pop(modlite_VMdata *data) {
 	return data->memory[data->registers[9*4]];
 }
 
-void modlite_run(modlite_VMdata *data, void (*exposedFunctions[])(void)) {
+void modlite_run(modlite_VMdata *data, void (*exposedFunctions[])(void), int exposedFunctionsMaxID) {
 	while (data->instructionPointer < data->memorySize) {
 		uint8_t byte = data->memory[data->instructionPointer];
 		
@@ -65,20 +67,35 @@ void modlite_run(modlite_VMdata *data, void (*exposedFunctions[])(void)) {
 		
 		// externalJump
 		else if (instruction == 3) {
-			uint32_t ID = data->registers[0];
+			uint32_t ID =data->registers[0];
+			
+			if (ID > exposedFunctionsMaxID) {
+				printf("externalJump: ID (%u) > exposedFunctionsMaxID", ID);
+				return;
+			}
 			
 			(*exposedFunctions[ID])();
 		}
 		
 		// load
 		else if (instruction == 4) {
+			if (data->instructionPointer + 5 > data->memorySize) {
+				printf("load: data->instructionPointer + 5 (%u) > data->memorySize (%u)", data->instructionPointer, data->memorySize);
+				return;
+			}
+			
 			data->instructionPointer += 1;
 			uint32_t value = data->memory[data->instructionPointer];
 			data->instructionPointer += 4;
 			
-			uint32_t R = data->memory[data->instructionPointer];
+			uint32_t registerToLoad = data->memory[data->instructionPointer];
 			
-			data->registers[R] = value;
+			if (registerToLoad > maxRegister) {
+				printf("load: registerToLoad (%u) > maxRegister (%u)", registerToLoad, maxRegister);
+				return;
+			}
+			
+			data->registers[registerToLoad] = value;
 		}
 		
 		// staticTransfer
@@ -92,7 +109,7 @@ void modlite_run(modlite_VMdata *data, void (*exposedFunctions[])(void)) {
 				data->instructionPointer += 3;
 				
 				if (location >= data->memorySize) {
-					printf("staticTransfer value location is >= memorySize");
+					printf("staticTransfer: value location is >= memorySize");
 					return;
 				}
 //
@@ -112,7 +129,7 @@ void modlite_run(modlite_VMdata *data, void (*exposedFunctions[])(void)) {
 				uint32_t location = data->memory[1*4];
 				
 				if (location >= data->memorySize) {
-					printf("staticTransfer new location is >= memorySize");
+					printf("staticTransfer: new location is >= memorySize");
 					return;
 				}
 
@@ -257,7 +274,7 @@ void modlite_run(modlite_VMdata *data, void (*exposedFunctions[])(void)) {
 #include "modlite.h"
 
 // returns 0 on success
-// and errno on failure
+// and errno or EFBIG on failure
 int readFileToBuffer(const char *path, char *buffer, const size_t bufferSize) {
 	FILE* file = fopen(path, "r");
 	
@@ -340,9 +357,11 @@ int main(int argc, char *argv[]) {
 	
 	void (*exposedFunctions[])(void) = {&print};
 	
+	int exposedFunctionsMaxID = 0;
+	
 	modlite_init(&VMdata);
 	
-	modlite_run(&VMdata, exposedFunctions);
+	modlite_run(&VMdata, exposedFunctions, exposedFunctionsMaxID);
 	
 	// free memory
 	free(VMdata.memory);
